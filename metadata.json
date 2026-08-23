@@ -1,0 +1,6 @@
+{
+  "name": "Nirnay",
+  "description": "AI-powered emergency decision-support command system providing spatial intelligence, digital twin crisis mapping, uncertainty estimation, and explainable response routing.",
+  "requestFramePermissions": ["microphone", "geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
