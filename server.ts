@@ -3,6 +3,15 @@ import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
+import {
+  INITIAL_ASSETS,
+  INITIAL_FACILITIES,
+  INITIAL_INTELLIGENCE_FEED,
+  INITIAL_ROADS,
+  INITIAL_ROUTES,
+  INITIAL_ZONES,
+  DISASTER_TIMELINE_EVENTS,
+} from './src/data/mockCrisisData';
 
 dotenv.config();
 
@@ -39,15 +48,80 @@ async function startServer() {
   // Graph endpoint (OpenStreetMap / GeoJSON spatial nodes)
   app.get('/api/graph', (req, res) => {
     res.json({
-      status: 'active',
-      disaster: {
-        type: 'FLASH_FLOOD',
-        name: 'Riverfront Inundation Event Alpha',
-        severity: 'CRITICAL',
-        peopleAffected: 48500,
-        activeIncidents: 14,
-        confidence: 89,
+      roads: INITIAL_ROADS,
+      facilities: INITIAL_FACILITIES,
+      zones: INITIAL_ZONES,
+      assets: INITIAL_ASSETS,
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  // Timeline, intelligence, and route data used by the existing frontend API modules.
+  app.get('/api/events', (req, res) => {
+    res.json(DISASTER_TIMELINE_EVENTS);
+  });
+
+  app.get('/api/intelligence', (req, res) => {
+    res.json(INITIAL_INTELLIGENCE_FEED);
+  });
+
+  app.get('/api/routes', (req, res) => {
+    res.json(INITIAL_ROUTES);
+  });
+
+    // P4: Road confidence endpoint
+  app.get('/api/confidence/:roadId', (req, res) => {
+    const { roadId } = req.params;
+
+    const confidenceData: Record<string, {
+      roadName: string;
+      status: string;
+      confidenceScore: number;
+      uncertaintyDescription: string;
+      sources: Array<{
+        type: string;
+        description: string;
+        reliability: number;
+      }>;
+    }> = {
+      'road-broadway': {
+        roadName: 'Broadway St.',
+        status: 'CRITICAL',
+        confidenceScore: 89,
+        uncertaintyDescription:
+          'High confidence based on verified flood sensors, citizen reports, and satellite observations.',
+        sources: [
+          {
+            type: 'HYDRO_SENSOR',
+            description: 'Water depth and flow sensor',
+            reliability: 0.96,
+          },
+          {
+            type: 'CITIZEN_REPORT',
+            description: 'Verified reports of stalled vehicles',
+            reliability: 0.82,
+          },
+          {
+            type: 'SATELLITE',
+            description: 'Satellite-based flood observation',
+            reliability: 0.94,
+          },
+        ],
       },
+    };
+
+    const data = confidenceData[roadId];
+
+    if (!data) {
+      return res.status(404).json({
+        error: 'Road confidence data not found',
+        roadId,
+      });
+    }
+
+    res.json({
+      roadId,
+      ...data,
     });
   });
 

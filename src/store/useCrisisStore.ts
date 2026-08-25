@@ -18,13 +18,17 @@ import {
   INITIAL_ZONES,
   INITIAL_ASSETS,
   INITIAL_ROUTES,
-  BROADWAY_SIMULATION_RESULT,
   INITIAL_AI_RECOMMENDATION,
   DISASTER_TIMELINE_EVENTS,
   INITIAL_INTELLIGENCE_FEED,
   INITIAL_CHAT_MESSAGES,
 } from '../data/mockCrisisData';
 import { sendAIChatQuery, requestAIExplanation, ExplainResponse } from '../api/explanation';
+import { fetchRoadConfidence } from '../api/confidence';
+import { fetchTimelineEvents, fetchIntelligenceFeed } from '../api/events';
+import { fetchGraphData } from '../api/graph';
+import { fetchRoutes } from '../api/routes';
+import { simulateRoadClosure } from '../api/simulation';
 
 export type TabType = 'map' | 'risk' | 'ai' | 'status';
 
@@ -83,7 +87,7 @@ interface CrisisState {
   selectRoad: (roadId: string | null) => void;
   openRoadDetailModal: (roadId: string) => void;
   closeRoadDetailModal: () => void;
-  triggerRoadClosureSimulation: (roadId: string) => void;
+  triggerRoadClosureSimulation: (roadId: string) => Promise<void>;
   closeClosureImpactView: () => void;
   applySafestRoute: () => void;
   openExplainWhyModal: (actionContext?: string) => Promise<void>;
@@ -101,7 +105,10 @@ interface CrisisState {
   nextTimelineStep: () => void;
   previousTimelineStep: () => void;
   resetAllSimulation: () => void;
+  hydrate: () => Promise<void>;
 }
+
+let hydrationPromise: Promise<void> | null = null;
 
 export const useCrisisStore = create<CrisisState>((set, get) => ({
   activeTab: 'map',
@@ -168,24 +175,44 @@ export const useCrisisStore = create<CrisisState>((set, get) => ({
       isRoadDetailModalOpen: true,
       isClosureImpactViewOpen: false,
     });
+
+    void fetchRoadConfidence(road.id).then((confidence) => {
+      if (!confidence) return;
+
+      set((state) => {
+        const updatedRoad = state.roads.find((item) => item.id === road.id);
+        if (!updatedRoad) return state;
+
+        const mergedRoad: RoadSegment = {
+          ...updatedRoad,
+          name: confidence.roadName,
+          status: confidence.status,
+          confidenceScore: confidence.confidenceScore,
+          uncertaintyDescription: confidence.uncertaintyDescription,
+          sources: confidence.sources,
+        };
+
+        return {
+          roads: state.roads.map((item) => (item.id === road.id ? mergedRoad : item)),
+          selectedRoad: state.selectedRoad?.id === road.id ? mergedRoad : state.selectedRoad,
+        };
+      });
+    });
   },
 
   closeRoadDetailModal: () => set({ isRoadDetailModalOpen: false }),
 
-  triggerRoadClosureSimulation: (roadId) => {
+  triggerRoadClosureSimulation: async (roadId) => {
     const road = get().roads.find((r) => r.id === roadId) || get().roads[0];
-    // Mark road as simulated blocked, activate simulation mode
     set({
       isRoadDetailModalOpen: false,
       isClosureImpactViewOpen: true,
       isSimulationActive: true,
       selectedRoad: road,
-      simulationResult: {
-        ...BROADWAY_SIMULATION_RESULT,
-        simulatedEntityId: road.id,
-        simulatedEntityName: road.name,
-      },
     });
+
+    const simulationResult = await simulateRoadClosure(road.id);
+    set({ simulationResult });
   },
 
   closeClosureImpactView: () => set({ isClosureImpactViewOpen: false }),
@@ -343,5 +370,28 @@ export const useCrisisStore = create<CrisisState>((set, get) => ({
       activeRouteId: 'route-b-alternate',
       roads: INITIAL_ROADS,
     });
+  },
+
+  hydrate: () => {
+    if (!hydrationPromise) {
+      hydrationPromise = Promise.all([
+        fetchGraphData(),
+        fetchRoutes(),
+        fetchTimelineEvents(),
+        fetchIntelligenceFeed(),
+      ]).then(([graph, routes, timelineEvents, intelligenceFeed]) => {
+        set({
+          roads: graph.roads,
+          facilities: graph.facilities,
+          zones: graph.zones,
+          assets: graph.assets,
+          routes,
+          timelineEvents,
+          intelligenceFeed,
+        });
+      });
+    }
+
+    return hydrationPromise;
   },
 }));

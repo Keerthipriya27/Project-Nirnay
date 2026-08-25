@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useCrisisStore } from './store/useCrisisStore';
 import { CommandHeader } from './components/navigation/CommandHeader';
 import { BottomNavBar } from './components/navigation/BottomNavBar';
@@ -14,7 +14,11 @@ import { CommandStatusView } from './components/status/CommandStatusView';
 import { RoverModal } from './components/status/RoverModal';
 
 export function App() {
-  const { activeTab, viewMode3D, isClosureImpactViewOpen } = useCrisisStore();
+  const { activeTab, viewMode3D, hydrate } = useCrisisStore();
+
+  useEffect(() => {
+    void hydrate();
+  }, [hydrate]);
 
   return (
     <div className="min-h-screen bg-[#050506] text-slate-200 flex flex-col font-sans select-none antialiased selection:bg-red-600 selection:text-white">
