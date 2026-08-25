@@ -1,0 +1,20 @@
+[
+  {
+    "road_id": 1,
+    "status": "flooded",
+    "source": "citizen",
+    "timestamp": "2026-08-25T11:00:00Z"
+  },
+  {
+    "road_id": 1,
+    "status": "open",
+    "source": "sensor",
+    "timestamp": "2026-08-25T11:05:00Z"
+  },
+  {
+    "road_id": 2,
+    "status": "closed",
+    "source": "satellite",
+    "timestamp": "2026-08-25T11:10:00Z"
+  }
+]
