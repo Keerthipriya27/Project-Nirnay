@@ -10,14 +10,7 @@ export interface GraphData {
 }
 
 export async function fetchGraphData(): Promise<GraphData> {
-  try {
-    const res = await fetch('/api/graph');
-    if (res.ok) {
-      return await res.json();
-    }
-  } catch {
-    // fallback
-  }
+  // Always return local mock data — no backend required for static deployment
   return {
     roads: INITIAL_ROADS,
     facilities: INITIAL_FACILITIES,
