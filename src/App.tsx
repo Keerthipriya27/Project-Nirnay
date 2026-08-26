@@ -1,3 +1,4 @@
+import NirnayRealMap from './components/map/NirnayRealMap';
 import React, { useEffect } from 'react';
 import { useCrisisStore } from './store/useCrisisStore';
 import { CommandHeader } from './components/navigation/CommandHeader';
@@ -34,7 +35,7 @@ export function App() {
         <main className="flex-1 md:ml-[80px] flex flex-col relative w-full overflow-y-auto custom-scrollbar">
           {activeTab === 'map' && (
             <div className="w-full h-full flex-1 relative animate-in fade-in duration-200">
-              {viewMode3D ? <Crisis3DMap /> : <Tactical2DMap />}
+              {viewMode3D ? <Crisis3DMap /> : <NirnayRealMap />}
             </div>
           )}
 
