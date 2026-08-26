@@ -1,4 +1,4 @@
-import {
+import React, {
   useEffect,
   useRef,
   useState,
@@ -281,6 +281,61 @@ const AFFECTED_ZONE: [number, number][] = [
 const NDRF_DISPATCH_ORIGIN: [number, number] = [
   17.6975,
   83.2700,
+];
+
+/*
+ * Simulated field asset positions for Nirnay MVP.
+ * Not real asset locations.
+ */
+const SIMULATED_ASSETS = [
+  {
+    id: 'rover-07',
+    name: 'ROVER-07',
+    type: 'AUTONOMOUS ROVER',
+    emoji: '🤖',
+    coords: [17.7050, 83.3020] as [number, number],
+    color: '#00ff99',
+    radius: 7,
+    status: 'EN ROUTE',
+    mission: 'VERIFY BROADWAY ST. WATER LEVEL',
+    battery: 88,
+  },
+  {
+    id: 'drone-02',
+    name: 'DRONE-02 (AeroScan)',
+    type: 'AERIAL RECON DRONE',
+    emoji: '🚁',
+    coords: [17.6890, 83.2950] as [number, number],
+    color: '#a78bfa',
+    radius: 7,
+    status: 'EN ROUTE',
+    mission: 'INFRARED FLOOD BOUNDARY MAPPING',
+    battery: 74,
+  },
+  {
+    id: 'amb-104',
+    name: 'AMBULANCE MED-104',
+    type: 'EMERGENCY AMBULANCE',
+    emoji: '🚑',
+    coords: [17.7010, 83.3100] as [number, number],
+    color: '#f59e0b',
+    radius: 7,
+    status: 'EN ROUTE',
+    mission: 'TRIAGE EVACUATION FROM ZONE C',
+    battery: 95,
+  },
+  {
+    id: 'heli-01',
+    name: 'AIR RESCUE HELI-1',
+    type: 'RESCUE HELICOPTER',
+    emoji: '🛸',
+    coords: [17.6760, 83.2820] as [number, number],
+    color: '#60a5fa',
+    radius: 8,
+    status: 'STANDBY',
+    mission: 'STANDBY AT HARBOR BASE',
+    battery: 91,
+  },
 ];
 
 const RISK_DISTANCE_METERS = 250;
@@ -784,6 +839,27 @@ export default function NirnayRealMap() {
   const [selectedHospital, setSelectedHospital] =
     useState<Hospital | null>(null);
 
+  // ── Info panel for non-hospital map elements ──
+  type InfoPanelKind =
+    | { kind: 'ndrf' }
+    | { kind: 'zone' }
+    | { kind: 'road'; road: CrisisRoad }
+    | { kind: 'asset'; name: string; type: string; status: string; mission: string; battery: number };
+
+  const [infoPanel, setInfoPanel] = useState<InfoPanelKind | null>(null);
+
+  function openInfoPanel(panel: InfoPanelKind) {
+    // close hospital panel when opening info panel
+    setSelectedHospital(null);
+    clearRoute();
+    setInfoPanel(panel);
+  }
+
+  function closeInfoPanel() {
+    setInfoPanel(null);
+  }
+
+
   const [primaryRoute, setPrimaryRoute] =
     useState<EmergencyRoute | null>(null);
 
@@ -804,6 +880,7 @@ export default function NirnayRealMap() {
 
   function selectHospital(hospital: Hospital) {
     routeAbortController.current?.abort();
+    setInfoPanel(null);
     setSelectedHospital(hospital);
     setPrimaryRoute(null);
     setAlternativeRoute(null);
@@ -1002,6 +1079,9 @@ export default function NirnayRealMap() {
             fillColor: '#ff3b30',
             fillOpacity: 0.15,
           }}
+          eventHandlers={{
+            click: () => openInfoPanel({ kind: 'zone' }),
+          }}
         >
           <Tooltip sticky>
             Nirnay simulated flood / affected
@@ -1042,6 +1122,9 @@ export default function NirnayRealMap() {
               opacity: 0.95,
               lineCap: 'round',
               lineJoin: 'round',
+            }}
+            eventHandlers={{
+              click: () => openInfoPanel({ kind: 'road', road }),
             }}
           >
             <Tooltip sticky>
@@ -1190,6 +1273,9 @@ export default function NirnayRealMap() {
             fillOpacity: 1,
             weight: 2,
           }}
+          eventHandlers={{
+            click: () => openInfoPanel({ kind: 'ndrf' }),
+          }}
         >
           <Tooltip sticky>
             SIMULATED NDRF DISPATCH UNIT
@@ -1219,291 +1305,148 @@ export default function NirnayRealMap() {
         </CircleMarker>
 
         {/* ============================================= */}
+        {/* SIMULATED FIELD ASSETS                        */}
+        {/* ============================================= */}
+
+        {SIMULATED_ASSETS.map((asset) => (
+          <CircleMarker
+            key={asset.id}
+            center={asset.coords}
+            radius={asset.radius}
+            pathOptions={{
+              color: '#ffffff',
+              fillColor: asset.color,
+              fillOpacity: 1,
+              weight: 2,
+            }}
+            eventHandlers={{
+              click: () =>
+                openInfoPanel({
+                  kind: 'asset',
+                  name: asset.name,
+                  type: asset.type,
+                  status: asset.status,
+                  mission: asset.mission,
+                  battery: asset.battery,
+                }),
+            }}
+          >
+            <Tooltip sticky>
+              <strong>{asset.emoji} {asset.name}</strong>
+              <br />
+              {asset.status} · Click for details
+            </Tooltip>
+          </CircleMarker>
+        ))}
+
+        {/* ============================================= */}
         {/* REAL OSM HOSPITALS                            */}
         {/* ============================================= */}
 
         {hospitals.map((hospital) => {
-        const isSelected = selectedHospital?.id === hospital.id;
+          const isSelected = selectedHospital?.id === hospital.id;
 
-        return (
-          <CircleMarker
-            key={hospital.id}
-            center={hospital.coordinates}
-            radius={isSelected ? 10 : 7}
-            eventHandlers={{
-              click: () => {
-                console.log('Nirnay hospital selected:', hospital.name);
-                selectHospital(hospital);
-              },
-            }}
-            pathOptions={{
-              color: isSelected ? '#00d9ff' : '#ffffff',
-              fillColor: isSelected ? '#00d9ff' : '#e53935',
-              fillOpacity: 1,
-              weight: isSelected ? 4 : 2,
-            }}
-          >
-            <Tooltip sticky>
-              <strong>
-                🏥 {hospital.name}
-              </strong>
-
-              <br />
-
-              {isSelected
-                ? 'SELECTED FOR EMERGENCY DISPATCH'
-                : 'CLICK TO SELECT'}
-            </Tooltip>
-
-            <Popup>
-              <div
-                style={{
-                  minWidth: '220px',
-                  fontFamily: 'Arial, sans-serif',
-                }}
-              >
-                <strong>
-                  🏥 {hospital.name}
-                </strong>
-
+          return (
+            <CircleMarker
+              key={hospital.id}
+              center={hospital.coordinates}
+              radius={isSelected ? 11 : 8}
+              eventHandlers={{
+                click: () => {
+                  selectHospital(hospital);
+                },
+              }}
+              pathOptions={{
+                color: isSelected ? '#00d9ff' : '#ffffff',
+                fillColor: isSelected ? '#00d9ff' : '#e53935',
+                fillOpacity: 1,
+                weight: isSelected ? 4 : 2,
+              }}
+            >
+              <Tooltip sticky>
+                <strong>🏥 {hospital.name}</strong>
                 <br />
-                <br />
+                {isSelected
+                  ? '✅ SELECTED — use panel to calculate route'
+                  : 'Click to select for emergency dispatch'}
+              </Tooltip>
 
-                <strong>Emergency Resource</strong>
-
-                <br />
-
-                Operational status:{' '}
-                <strong>UNVERIFIED</strong>
-
-                <br />
-
-                Source: OpenStreetMap
-
-                <hr />
-
-                <strong style={{ color: '#0099cc' }}>
-                  RESPONSE UNIT
-                </strong>
-
-                <br />
-                <br />
-
-                Unit:{' '}
-                <strong>NDRF-WEST-01</strong>
-
-                <br />
-
-                Status:{' '}
-                <strong>READY</strong>
-
-                <br />
-
-                Dispatch origin:{' '}
-                <strong>SIMULATED</strong>
-
-                <br />
-                <br />
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    selectHospital(hospital);
-                  }}
+              <Popup>
+                <div
                   style={{
-                    width: '100%',
-                    padding: '8px',
-                    border: '1px solid #00a8cc',
-                    borderRadius: '4px',
-                    background: '#00d9ff',
-                    color: '#061014',
-                    fontWeight: 700,
-                    cursor: 'pointer',
+                    minWidth: '220px',
+                    fontFamily: 'Arial, sans-serif',
+                    fontSize: '13px',
                   }}
                 >
-                  SELECT FOR DISPATCH
-                </button>
-              </div>
-            </Popup>
-          </CircleMarker>
-        );
-      })}
+                  <strong>🏥 {hospital.name}</strong>
+                  <br />
+                  <br />
+                  Source: OpenStreetMap
+                  <br />
+                  Operational status: <strong>UNVERIFIED</strong>
+                  <hr style={{ margin: '8px 0' }} />
+                  <strong style={{ color: '#0099cc' }}>
+                    RESPONSE UNIT
+                  </strong>
+                  <br />
+                  <br />
+                  Unit: <strong>NDRF-WEST-01</strong>
+                  <br />
+                  Status: <strong style={{ color: '#00cc66' }}>READY</strong>
+                  <br />
+                  Origin: <strong>Simulated dispatch position</strong>
+                  <br />
+                  <br />
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      selectHospital(hospital);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '9px',
+                      border: 'none',
+                      borderRadius: '5px',
+                      background: isSelected ? '#00cc66' : '#00d9ff',
+                      color: '#061014',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      letterSpacing: '0.05em',
+                    }}
+                  >
+                    {isSelected
+                      ? '✅ SELECTED — see side panel'
+                      : '⚡ SELECT FOR DISPATCH'}
+                  </button>
+                </div>
+              </Popup>
+            </CircleMarker>
+          );
+        })}
       </MapContainer>
 
       {selectedHospital && (
-        <div
-          style={{
-            position: 'absolute',
-            right: 20,
-            bottom: 80,
-            zIndex: 2000,
-            width: 260,
-            background: 'rgba(10,10,12,0.95)',
-            border: '1px solid rgba(255,255,255,0.12)',
-            borderRadius: 8,
-            padding: '14px 16px',
-            boxShadow: '0 8px 25px rgba(0,0,0,0.4)',
-            color: '#ffffff',
-            fontFamily: 'monospace',
+        <DispatchPanel
+          hospital={selectedHospital}
+          primaryRoute={primaryRoute}
+          alternativeRoute={alternativeRoute}
+          selectedRouteKind={selectedRouteKind}
+          routeState={routeState}
+          onCalculate={calculateRoute}
+          onClear={clearRoute}
+          onSelectRoute={setSelectedRouteKind}
+          onDismiss={() => {
+            clearRoute();
+            setSelectedHospital(null);
           }}
-        >
-          <div
-            style={{
-              color: '#00d9ff',
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: '0.12em',
-              marginBottom: 10,
-            }}
-          >
-            RESPONSE UNIT
-          </div>
+        />
+      )}
 
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 700,
-              lineHeight: 1.4,
-            }}
-          >
-            NDRF-WEST-01
-          </div>
-
-          <div
-            style={{
-              color: '#bbbbbb',
-              fontSize: 10,
-              lineHeight: 1.5,
-              marginTop: 6,
-            }}
-          >
-            Simulated emergency-response position
-          </div>
-
-          <div
-            style={{
-              color: '#00d9ff',
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: '0.12em',
-              marginTop: 14,
-            }}
-          >
-            DESTINATION
-          </div>
-
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 700,
-              lineHeight: 1.4,
-              marginTop: 4,
-            }}
-          >
-            {selectedHospital.name}
-          </div>
-
-          <div
-            style={{
-              color: '#bbbbbb',
-              fontSize: 10,
-              lineHeight: 1.5,
-              marginTop: 6,
-            }}
-          >
-            {selectedHospital.coordinates[0].toFixed(5)},
-            {' '}
-            {selectedHospital.coordinates[1].toFixed(5)}
-          </div>
-
-          <div
-            style={{
-              display: 'flex',
-              gap: 8,
-              marginTop: 14,
-            }}
-          >
-            <button
-              type="button"
-              onClick={calculateRoute}
-              disabled={routeState === 'loading'}
-              style={{
-                flex: 1,
-                border: '1px solid #00d9ff',
-                borderRadius: 4,
-                background: '#00d9ff',
-                color: '#061014',
-                cursor:
-                  routeState === 'loading'
-                    ? 'wait'
-                    : 'pointer',
-                fontFamily: 'monospace',
-                fontSize: 10,
-                fontWeight: 700,
-                padding: '8px 6px',
-              }}
-            >
-              CALCULATE ROUTE
-            </button>
-
-            <button
-              type="button"
-              onClick={clearRoute}
-              style={{
-                flex: 1,
-                border: '1px solid rgba(255,255,255,0.35)',
-                borderRadius: 4,
-                background: 'transparent',
-                color: '#ffffff',
-                cursor: 'pointer',
-                fontFamily: 'monospace',
-                fontSize: 10,
-                fontWeight: 700,
-                padding: '8px 6px',
-              }}
-            >
-              CLEAR ROUTE
-            </button>
-          </div>
-
-          {routeState === 'loading' && (
-            <div
-              style={{
-                color: '#00d9ff',
-                fontSize: 10,
-                marginTop: 12,
-              }}
-            >
-              CALCULATING ROUTE...
-            </div>
-          )}
-
-          {routeState === 'error' && (
-            <div
-              style={{
-                color: '#ff3b30',
-                fontSize: 10,
-                marginTop: 12,
-              }}
-            >
-              ROUTE CALCULATION FAILED
-            </div>
-          )}
-
-          
-
-          <div
-            style={{
-              color: '#888888',
-              fontSize: 9,
-              lineHeight: 1.5,
-              marginTop: 12,
-            }}
-          >
-            Routing engine does not include Nirnay
-            simulated road-status data.
-          </div>
-        </div>
+      {infoPanel && (
+        <MapInfoPanel panel={infoPanel} onClose={closeInfoPanel} />
       )}
 
       {/* ============================================= */}
@@ -1726,11 +1669,7 @@ function AssessmentField({
   value: string;
 }) {
   return (
-    <div
-      style={{
-        marginTop: 12,
-      }}
-    >
+    <div style={{ marginTop: 12 }}>
       <div
         style={{
           color: '#a78bfa',
@@ -1742,7 +1681,6 @@ function AssessmentField({
       >
         {label}
       </div>
-
       <div
         style={{
           color: '#ffffff',
@@ -1751,6 +1689,608 @@ function AssessmentField({
           marginTop: 4,
         }}
       >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+/* ================================================================
+ * DISPATCH PANEL
+ * Full RESPONSE UNIT → DESTINATION → CALCULATE ROUTE → results UI
+ * ================================================================ */
+
+function DispatchPanel({
+  hospital,
+  primaryRoute,
+  alternativeRoute,
+  selectedRouteKind,
+  routeState,
+  onCalculate,
+  onClear,
+  onSelectRoute,
+  onDismiss,
+}: {
+  hospital: Hospital;
+  primaryRoute: EmergencyRoute | null;
+  alternativeRoute: EmergencyRoute | null;
+  selectedRouteKind: 'primary' | 'alternative' | null;
+  routeState: 'idle' | 'loading' | 'error';
+  onCalculate: () => void;
+  onClear: () => void;
+  onSelectRoute: (kind: 'primary' | 'alternative') => void;
+  onDismiss: () => void;
+}) {
+  const hasRoutes = primaryRoute !== null;
+  const recommended = preferredRouteKind(
+    primaryRoute ?? { intersectsAffectedZone: false, distance: null, duration: null } as unknown as EmergencyRoute,
+    alternativeRoute,
+  );
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        right: 16,
+        top: 16,
+        zIndex: 2000,
+        width: 280,
+        maxHeight: 'calc(100% - 32px)',
+        overflowY: 'auto',
+        background: 'rgba(8,10,14,0.97)',
+        border: '1px solid rgba(0,217,255,0.25)',
+        borderRadius: 10,
+        padding: '16px',
+        boxShadow: '0 12px 40px rgba(0,0,0,0.6)',
+        color: '#ffffff',
+        fontFamily: 'monospace',
+        fontSize: 11,
+      }}
+    >
+      {/* ── header ── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+        <div>
+          <div style={{ color: '#00d9ff', fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', marginBottom: 2 }}>
+            ⚡ RESPONSE UNIT
+          </div>
+          <div style={{ fontSize: 14, fontWeight: 700 }}>NDRF-WEST-01</div>
+          <div style={{ color: '#22c55e', fontSize: 9, marginTop: 2 }}>● READY</div>
+        </div>
+        <button
+          type="button"
+          onClick={onDismiss}
+          style={{
+            background: 'transparent',
+            border: '1px solid rgba(255,255,255,0.2)',
+            borderRadius: 4,
+            color: '#888',
+            cursor: 'pointer',
+            fontSize: 12,
+            lineHeight: 1,
+            padding: '3px 7px',
+          }}
+        >
+          ✕
+        </button>
+      </div>
+
+      {/* ── divider ── */}
+      <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', marginBottom: 14 }} />
+
+      {/* ── destination ── */}
+      <div style={{ color: '#00d9ff', fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', marginBottom: 4 }}>
+        ↓ DESTINATION
+      </div>
+      <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.4 }}>🏥 {hospital.name}</div>
+      <div style={{ color: '#888', fontSize: 9, marginTop: 3 }}>
+        {hospital.coordinates[0].toFixed(5)}, {hospital.coordinates[1].toFixed(5)}
+      </div>
+
+      {/* ── action buttons ── */}
+      <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+        <button
+          type="button"
+          onClick={onCalculate}
+          disabled={routeState === 'loading'}
+          style={{
+            flex: 1,
+            border: 'none',
+            borderRadius: 5,
+            background: routeState === 'loading' ? '#006680' : '#00d9ff',
+            color: '#061014',
+            cursor: routeState === 'loading' ? 'wait' : 'pointer',
+            fontFamily: 'monospace',
+            fontSize: 10,
+            fontWeight: 700,
+            padding: '9px 6px',
+            letterSpacing: '0.05em',
+          }}
+        >
+          {routeState === 'loading' ? '⏳ CALCULATING…' : '🔍 CALCULATE ROUTE'}
+        </button>
+        {hasRoutes && (
+          <button
+            type="button"
+            onClick={onClear}
+            style={{
+              border: '1px solid rgba(255,255,255,0.25)',
+              borderRadius: 5,
+              background: 'transparent',
+              color: '#aaa',
+              cursor: 'pointer',
+              fontFamily: 'monospace',
+              fontSize: 10,
+              fontWeight: 700,
+              padding: '9px 10px',
+            }}
+          >
+            ✕
+          </button>
+        )}
+      </div>
+
+      {/* ── error ── */}
+      {routeState === 'error' && (
+        <div style={{ color: '#ff3b30', fontSize: 10, marginTop: 12, lineHeight: 1.5 }}>
+          ⚠ Route calculation failed. OSRM may be unavailable.
+        </div>
+      )}
+
+      {/* ── route results ── */}
+      {hasRoutes && primaryRoute && (
+        <>
+          <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '14px 0' }} />
+
+          {/* Nirnay safety advisory */}
+          {(primaryRoute.intersectsAffectedZone || alternativeRoute?.intersectsAffectedZone) && (
+            <div
+              style={{
+                background: 'rgba(255,59,48,0.12)',
+                border: '1px solid rgba(255,59,48,0.4)',
+                borderRadius: 6,
+                padding: '8px 10px',
+                marginBottom: 12,
+              }}
+            >
+              <div style={{ color: '#ff3b30', fontSize: 9, fontWeight: 700, letterSpacing: '0.1em' }}>
+                ⚠ NIRNAY ZONE WARNING
+              </div>
+              <div style={{ color: '#ffb3ae', fontSize: 10, marginTop: 4, lineHeight: 1.5 }}>
+                {primaryRoute.intersectsAffectedZone && alternativeRoute && !alternativeRoute.intersectsAffectedZone
+                  ? 'Primary route enters the affected zone. Nirnay recommends the alternative route.'
+                  : primaryRoute.intersectsAffectedZone && !alternativeRoute
+                    ? 'This route enters the affected flood zone. Proceed with caution.'
+                    : 'Both routes pass through the affected zone. Use extreme caution.'}
+              </div>
+            </div>
+          )}
+
+          {/* Nirnay recommendation badge */}
+          <div style={{ color: '#a78bfa', fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', marginBottom: 8 }}>
+            NIRNAY RECOMMENDS
+          </div>
+          <div
+            style={{
+              background: 'rgba(167,139,250,0.1)',
+              border: '1px solid rgba(167,139,250,0.3)',
+              borderRadius: 5,
+              padding: '6px 10px',
+              marginBottom: 12,
+              fontSize: 10,
+              color: '#d8b4fe',
+              lineHeight: 1.5,
+            }}
+          >
+            {recommended === 'primary'
+              ? primaryRoute.intersectsAffectedZone
+                ? '⚠ Use PRIMARY route — no alternative available. Enters affected zone.'
+                : '✅ PRIMARY route is safest and fastest.'
+              : alternativeRoute?.intersectsAffectedZone === false
+                ? '✅ ALTERNATIVE route avoids the affected zone — use this.'
+                : '⚠ ALTERNATIVE route is shorter but check zone overlap.'}
+          </div>
+
+          {/* Route tabs */}
+          <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+            <RouteTab
+              label="PRIMARY"
+              color="#00d9ff"
+              active={selectedRouteKind === 'primary'}
+              recommended={recommended === 'primary'}
+              onClick={() => onSelectRoute('primary')}
+            />
+            {alternativeRoute && (
+              <RouteTab
+                label="ALTERNATIVE"
+                color="#a78bfa"
+                active={selectedRouteKind === 'alternative'}
+                recommended={recommended === 'alternative'}
+                onClick={() => onSelectRoute('alternative')}
+              />
+            )}
+          </div>
+
+          {/* Selected route details */}
+          {selectedRouteKind === 'primary' && (
+            <RouteDetails route={primaryRoute} color="#00d9ff" />
+          )}
+          {selectedRouteKind === 'alternative' && alternativeRoute && (
+            <RouteDetails route={alternativeRoute} color="#a78bfa" />
+          )}
+        </>
+      )}
+
+      {/* ── footer note ── */}
+      <div style={{ color: '#555', fontSize: 9, lineHeight: 1.5, marginTop: 14 }}>
+        Routing via OSRM · Road data from OpenStreetMap · Zone overlay: Nirnay simulation
+      </div>
+    </div>
+  );
+}
+
+function RouteTab({
+  label,
+  color,
+  active,
+  recommended,
+  onClick,
+}: {
+  label: string;
+  color: string;
+  active: boolean;
+  recommended: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        flex: 1,
+        border: `1px solid ${active ? color : 'rgba(255,255,255,0.15)'}`,
+        borderRadius: 5,
+        background: active ? `${color}22` : 'transparent',
+        color: active ? color : '#888',
+        cursor: 'pointer',
+        fontFamily: 'monospace',
+        fontSize: 9,
+        fontWeight: 700,
+        padding: '6px 4px',
+        letterSpacing: '0.06em',
+        position: 'relative',
+      }}
+    >
+      {label}
+      {recommended && (
+        <span style={{ color: '#22c55e', fontSize: 8, marginLeft: 3 }}>★</span>
+      )}
+    </button>
+  );
+}
+
+function RouteDetails({ route, color }: { route: EmergencyRoute; color: string }) {
+  return (
+    <div
+      style={{
+        background: 'rgba(255,255,255,0.04)',
+        border: `1px solid ${color}33`,
+        borderRadius: 6,
+        padding: '10px 12px',
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+        <MetricBox label="DISTANCE" value={formatRouteDistance(route.distance)} color={color} />
+        <MetricBox label="EST. TIME" value={formatRouteDuration(route.duration)} color={color} />
+      </div>
+
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          marginTop: 4,
+          padding: '5px 8px',
+          borderRadius: 4,
+          background: route.intersectsAffectedZone
+            ? 'rgba(255,59,48,0.12)'
+            : 'rgba(34,197,94,0.10)',
+          border: `1px solid ${route.intersectsAffectedZone ? 'rgba(255,59,48,0.3)' : 'rgba(34,197,94,0.25)'}`,
+        }}
+      >
+        <span style={{ fontSize: 11 }}>
+          {route.intersectsAffectedZone ? '⚠' : '✅'}
+        </span>
+        <span
+          style={{
+            fontSize: 9,
+            fontWeight: 700,
+            color: route.intersectsAffectedZone ? '#ff6b6b' : '#22c55e',
+          }}
+        >
+          {route.intersectsAffectedZone
+            ? 'ENTERS AFFECTED ZONE'
+            : 'CLEAR OF AFFECTED ZONE'}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function MetricBox({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <div style={{ textAlign: 'center', flex: 1 }}>
+      <div style={{ color: color, fontSize: 8, fontWeight: 700, letterSpacing: '0.1em', marginBottom: 3 }}>
+        {label}
+      </div>
+      <div style={{ fontSize: 15, fontWeight: 700, color: '#ffffff' }}>{value}</div>
+    </div>
+  );
+}
+
+/* ================================================================
+ * MAP INFO PANEL
+ * Shown when user clicks NDRF unit, affected zone, road, or asset
+ * ================================================================ */
+
+type InfoPanelProps = {
+  panel:
+    | { kind: 'ndrf' }
+    | { kind: 'zone' }
+    | { kind: 'road'; road: CrisisRoad }
+    | { kind: 'asset'; name: string; type: string; status: string; mission: string; battery: number };
+  onClose: () => void;
+};
+
+function MapInfoPanel({ panel, onClose }: InfoPanelProps) {
+  const panelStyle: React.CSSProperties = {
+    position: 'absolute',
+    right: 16,
+    top: 16,
+    zIndex: 2000,
+    width: 268,
+    background: 'rgba(8,10,14,0.97)',
+    border: '1px solid rgba(255,255,255,0.12)',
+    borderRadius: 10,
+    padding: '16px',
+    boxShadow: '0 12px 40px rgba(0,0,0,0.6)',
+    color: '#ffffff',
+    fontFamily: 'monospace',
+    fontSize: 11,
+  };
+
+  const headerStyle: React.CSSProperties = {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 14,
+  };
+
+  const closeBtnStyle: React.CSSProperties = {
+    background: 'transparent',
+    border: '1px solid rgba(255,255,255,0.2)',
+    borderRadius: 4,
+    color: '#888',
+    cursor: 'pointer',
+    fontSize: 12,
+    lineHeight: 1,
+    padding: '3px 7px',
+  };
+
+  const dividerStyle: React.CSSProperties = {
+    height: 1,
+    background: 'rgba(255,255,255,0.08)',
+    margin: '12px 0',
+  };
+
+  const labelStyle: React.CSSProperties = {
+    color: '#888',
+    fontSize: 9,
+    fontWeight: 700,
+    letterSpacing: '0.12em',
+    textTransform: 'uppercase',
+    marginBottom: 3,
+  };
+
+  const valueStyle: React.CSSProperties = {
+    fontSize: 12,
+    fontWeight: 700,
+    color: '#ffffff',
+    lineHeight: 1.4,
+  };
+
+  /* ── NDRF Unit ── */
+  if (panel.kind === 'ndrf') {
+    return (
+      <div style={panelStyle}>
+        <div style={headerStyle}>
+          <div>
+            <div style={{ ...labelStyle, color: '#00d9ff' }}>⚡ DISPATCH UNIT</div>
+            <div style={{ fontSize: 15, fontWeight: 800 }}>NDRF-WEST-01</div>
+            <div style={{ color: '#22c55e', fontSize: 9, marginTop: 2 }}>● READY FOR DEPLOYMENT</div>
+          </div>
+          <button type="button" style={closeBtnStyle} onClick={onClose}>✕</button>
+        </div>
+        <div style={dividerStyle} />
+        <InfoRow label="Unit Type" value="National Disaster Response Force" />
+        <InfoRow label="Status" value="STANDBY — Awaiting Dispatch Order" valueColor="#22c55e" />
+        <InfoRow label="Personnel" value="12 trained first responders" />
+        <InfoRow label="Equipment" value="Rescue boats, stretchers, medical kits" />
+        <InfoRow label="Response Range" value="~25 km operational radius" />
+        <InfoRow label="Position" value="Simulated dispatch origin · Nirnay MVP" valueColor="#888" />
+        <div style={dividerStyle} />
+        <div style={{ color: '#00d9ff', fontSize: 9, lineHeight: 1.6 }}>
+          Click a 🏥 hospital on the map to dispatch this unit and calculate the safest emergency route.
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Affected Zone ── */
+  if (panel.kind === 'zone') {
+    return (
+      <div style={{ ...panelStyle, borderColor: 'rgba(255,59,48,0.35)' }}>
+        <div style={headerStyle}>
+          <div>
+            <div style={{ ...labelStyle, color: '#ff3b30' }}>⚠ CRISIS ZONE</div>
+            <div style={{ fontSize: 15, fontWeight: 800 }}>Nirnay Affected Zone</div>
+            <div style={{ color: '#ff6b6b', fontSize: 9, marginTop: 2 }}>● ACTIVE FLOOD SCENARIO</div>
+          </div>
+          <button type="button" style={closeBtnStyle} onClick={onClose}>✕</button>
+        </div>
+        <div style={dividerStyle} />
+        <InfoRow label="Scenario" value="Simulated cyclone + flash flood event" />
+        <InfoRow label="Zone Center" value="17.700°N 83.305°E (approx)" />
+        <InfoRow label="Est. Population" value="~4,200 residents" valueColor="#ff6b6b" />
+        <InfoRow label="Water Rise Rate" value="0.5 m/hr (rising)" valueColor="#f59e0b" />
+        <InfoRow label="Inundation Depth" value="up to 48 cm in low-lying areas" />
+        <InfoRow label="Status" value="CRITICAL INTERVENTION REQUIRED" valueColor="#ff3b30" />
+        <div style={dividerStyle} />
+        <div
+          style={{
+            background: 'rgba(255,59,48,0.10)',
+            border: '1px solid rgba(255,59,48,0.3)',
+            borderRadius: 6,
+            padding: '8px 10px',
+            color: '#ffb3ae',
+            fontSize: 9,
+            lineHeight: 1.6,
+          }}
+        >
+          This is a Nirnay simulation layer. Not an official government flood boundary.
+          Roads crossing this zone are classified as BLOCKED or AT RISK.
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Road ── */
+  if (panel.kind === 'road') {
+    const { road } = panel;
+    const statusColor =
+      road.status === 'blocked' ? '#ff3b30' :
+      road.status === 'risk'    ? '#f59e0b' : '#00ff99';
+    return (
+      <div style={{ ...panelStyle, borderColor: `${statusColor}44` }}>
+        <div style={headerStyle}>
+          <div>
+            <div style={{ ...labelStyle, color: statusColor }}>🛣 ROAD SEGMENT</div>
+            <div style={{ fontSize: 14, fontWeight: 800, lineHeight: 1.3 }}>{road.name}</div>
+            <div style={{ color: statusColor, fontSize: 9, fontWeight: 700, marginTop: 3 }}>
+              ● {roadLabel(road.status)}
+            </div>
+          </div>
+          <button type="button" style={closeBtnStyle} onClick={onClose}>✕</button>
+        </div>
+        <div style={dividerStyle} />
+        <InfoRow label="OSM Type" value={road.highwayType.charAt(0).toUpperCase() + road.highwayType.slice(1)} />
+        <InfoRow
+          label="Nirnay Classification"
+          value={roadLabel(road.status)}
+          valueColor={statusColor}
+        />
+        <InfoRow
+          label="Affected Zone Intersection"
+          value={road.status === 'blocked' ? 'YES — inside flood zone' : road.status === 'risk' ? 'NEAR — within 250 m buffer' : 'NO — clear of zone'}
+          valueColor={road.status === 'blocked' ? '#ff3b30' : road.status === 'risk' ? '#f59e0b' : '#00ff99'}
+        />
+        <InfoRow label="Source" value="OpenStreetMap · Nirnay simulation overlay" />
+        <div style={dividerStyle} />
+        <div style={{ color: '#888', fontSize: 9, lineHeight: 1.6 }}>
+          Road status is determined by geometric intersection with the Nirnay simulated flood polygon.
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Asset ── */
+  if (panel.kind === 'asset') {
+    const { name, type, status, mission, battery } = panel;
+    const isActive = status === 'EN ROUTE' || status === 'ON SITE';
+    const statusColor = isActive ? '#f59e0b' : status === 'STANDBY' ? '#60a5fa' : '#00ff99';
+    const emoji =
+      type.includes('ROVER') ? '🤖' :
+      type.includes('DRONE') ? '🚁' :
+      type.includes('AMBULANCE') ? '🚑' :
+      type.includes('HELICOPTER') ? '🛸' : '📡';
+
+    return (
+      <div style={{ ...panelStyle, borderColor: `${statusColor}44` }}>
+        <div style={headerStyle}>
+          <div>
+            <div style={{ ...labelStyle, color: statusColor }}>
+              {emoji} {type}
+            </div>
+            <div style={{ fontSize: 14, fontWeight: 800, lineHeight: 1.3 }}>{name}</div>
+            <div style={{ color: statusColor, fontSize: 9, fontWeight: 700, marginTop: 3 }}>
+              ● {status}
+            </div>
+          </div>
+          <button type="button" style={closeBtnStyle} onClick={onClose}>✕</button>
+        </div>
+        <div style={dividerStyle} />
+        <InfoRow label="Current Mission" value={mission} />
+        <InfoRow
+          label="Battery / Fuel"
+          value={`${battery}%`}
+          valueColor={battery > 60 ? '#00ff99' : battery > 30 ? '#f59e0b' : '#ff3b30'}
+        />
+        <InfoRow
+          label="Connectivity"
+          value={type.includes('HELICOPTER') ? 'VHF RADIO + GPS' : '5G / SAT UPLINK'}
+        />
+        <InfoRow
+          label="Telemetry"
+          value={isActive ? 'LIVE FEED ACTIVE' : 'NOMINAL — STANDBY MODE'}
+          valueColor={isActive ? '#00ff99' : '#888'}
+        />
+        <InfoRow label="Position" value="Simulated location · Nirnay MVP" valueColor="#555" />
+        <div style={dividerStyle} />
+        <div
+          style={{
+            background: `${statusColor}12`,
+            border: `1px solid ${statusColor}33`,
+            borderRadius: 6,
+            padding: '7px 10px',
+            color: statusColor,
+            fontSize: 9,
+            lineHeight: 1.6,
+          }}
+        >
+          {isActive
+            ? `${name} is currently ${status.toLowerCase()} on an active mission. Teleoperation feed available via Ops Status tab.`
+            : `${name} is on standby. Can be deployed via the Risk Priority → Dispatch Rover command.`}
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+function InfoRow({
+  label,
+  value,
+  valueColor = '#ffffff',
+}: {
+  label: string;
+  value: string;
+  valueColor?: string;
+}) {
+  return (
+    <div style={{ marginBottom: 9 }}>
+      <div
+        style={{
+          color: '#666',
+          fontSize: 9,
+          fontWeight: 700,
+          letterSpacing: '0.1em',
+          textTransform: 'uppercase',
+          marginBottom: 2,
+        }}
+      >
+        {label}
+      </div>
+      <div style={{ fontSize: 11, fontWeight: 700, color: valueColor, lineHeight: 1.4 }}>
         {value}
       </div>
     </div>

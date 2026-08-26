@@ -30,7 +30,7 @@ import { fetchGraphData } from '../api/graph';
 import { fetchRoutes } from '../api/routes';
 import { simulateRoadClosure } from '../api/simulation';
 
-export type TabType = 'map' | 'risk' | 'ai' | 'status';
+export type TabType = 'home' | 'map' | 'risk' | 'ai' | 'status' | 'profile';
 
 export interface LayerFilters {
   floods: boolean;
@@ -111,7 +111,7 @@ interface CrisisState {
 let hydrationPromise: Promise<void> | null = null;
 
 export const useCrisisStore = create<CrisisState>((set, get) => ({
-  activeTab: 'map',
+  activeTab: 'home',
   viewMode3D: false, // Default to clean, pixel-perfect 2D map matching uploaded screens with seamless 1-click 3D Digital Twin toggle
   liveContextActive: true,
   selectedRoad: null,

@@ -1,19 +1,21 @@
 import React from 'react';
 import { useCrisisStore, TabType } from '../../store/useCrisisStore';
-import { Map as MapIcon, AlertTriangle, BrainCircuit, BarChart3, Radio } from 'lucide-react';
+import { Home, Map as MapIcon, AlertTriangle, BrainCircuit, BarChart3, User } from 'lucide-react';
 
 export const DesktopSidebar: React.FC = () => {
   const { activeTab, setActiveTab, liveContextActive } = useCrisisStore();
 
   const navItems: { id: TabType; label: string; icon: React.ReactNode; badge?: string }[] = [
-    { id: 'map', label: 'Map', icon: <MapIcon className="w-5 h-5" /> },
-    { id: 'risk', label: 'Risk', icon: <AlertTriangle className="w-5 h-5" />, badge: '3' },
-    { id: 'ai', label: 'AI', icon: <BrainCircuit className="w-5 h-5" /> },
+    { id: 'home',   label: 'Home',   icon: <Home className="w-5 h-5" /> },
+    { id: 'map',    label: 'Map',    icon: <MapIcon className="w-5 h-5" /> },
+    { id: 'risk',   label: 'Risk',   icon: <AlertTriangle className="w-5 h-5" />, badge: '3' },
+    { id: 'ai',     label: 'AI',     icon: <BrainCircuit className="w-5 h-5" /> },
     { id: 'status', label: 'Status', icon: <BarChart3 className="w-5 h-5" /> },
+    { id: 'profile',label: 'Profile',icon: <User className="w-5 h-5" /> },
   ];
 
   return (
-    <aside className="hidden md:flex fixed left-0 top-[56px] md:top-[64px] bottom-0 w-[80px] bg-[#0a0a0c]/95 backdrop-blur-xl border-r border-white/10 flex-col items-center pt-6 gap-4 z-30 select-none">
+    <aside className="hidden md:flex fixed left-0 top-[56px] md:top-[64px] bottom-0 w-[80px] bg-[#0a0a0c]/95 backdrop-blur-xl border-r border-white/10 flex-col items-center pt-4 pb-4 gap-2 z-30 select-none">
       {navItems.map((item) => {
         const isActive = activeTab === item.id;
         return (
@@ -40,7 +42,7 @@ export const DesktopSidebar: React.FC = () => {
       })}
 
       {/* Live Status indicator at bottom of sidebar */}
-      <div className="mt-auto mb-6 flex flex-col items-center gap-1.5 p-2 bg-white/5 rounded border border-white/5">
+      <div className="mt-auto flex flex-col items-center gap-1.5 p-2 bg-white/5 rounded border border-white/5">
         <div
           className={`w-2 h-2 rounded-full ${
             liveContextActive ? 'bg-[#00ff99] animate-ping' : 'bg-white/20'

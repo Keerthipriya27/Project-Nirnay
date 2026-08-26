@@ -13,6 +13,8 @@ import { AskAIView } from './components/ai/AskAIView';
 import { ExplainWhyModal } from './components/ai/ExplainWhyModal';
 import { CommandStatusView } from './components/status/CommandStatusView';
 import { RoverModal } from './components/status/RoverModal';
+import { HomePage } from './components/pages/HomePage';
+import { ProfilePage } from './components/pages/ProfilePage';
 
 export function App() {
   const { activeTab, viewMode3D, hydrate } = useCrisisStore();
@@ -33,6 +35,12 @@ export function App() {
 
         {/* Dynamic Center Work Area (Offsets on desktop for the 80px sidebar) */}
         <main className="flex-1 md:ml-[80px] flex flex-col relative w-full overflow-y-auto custom-scrollbar">
+          {activeTab === 'home' && (
+            <div className="w-full flex-1 animate-in fade-in duration-200">
+              <HomePage />
+            </div>
+          )}
+
           {activeTab === 'map' && (
             <div className="w-full h-full flex-1 relative animate-in fade-in duration-200">
               {viewMode3D ? <Crisis3DMap /> : <NirnayRealMap />}
@@ -54,6 +62,12 @@ export function App() {
           {activeTab === 'status' && (
             <div className="w-full flex-1 animate-in fade-in duration-200">
               <CommandStatusView />
+            </div>
+          )}
+
+          {activeTab === 'profile' && (
+            <div className="w-full flex-1 animate-in fade-in duration-200">
+              <ProfilePage />
             </div>
           )}
         </main>
