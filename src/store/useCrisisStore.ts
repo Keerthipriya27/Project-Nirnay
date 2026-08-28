@@ -29,6 +29,7 @@ import { fetchTimelineEvents, fetchIntelligenceFeed } from '../api/events';
 import { fetchGraphData } from '../api/graph';
 import { fetchRoutes } from '../api/routes';
 import { simulateRoadClosure } from '../api/simulation';
+import { DEFAULT_DISTRICT, DistrictId, getDistrict } from '../data/districts';
 
 export type TabType = 'home' | 'map' | 'risk' | 'ai' | 'status' | 'profile';
 
@@ -44,6 +45,7 @@ export interface LayerFilters {
 
 interface CrisisState {
   activeTab: TabType;
+  activeDistrict: DistrictId;
   viewMode3D: boolean;
   liveContextActive: boolean;
   selectedRoad: RoadSegment | null;
@@ -80,6 +82,7 @@ interface CrisisState {
 
   // Actions
   setActiveTab: (tab: TabType) => void;
+  setActiveDistrict: (district: DistrictId) => void;
   setViewMode3D: (is3D: boolean) => void;
   toggleViewMode3D: () => void;
   setLiveContextActive: (active: boolean) => void;
@@ -112,6 +115,7 @@ let hydrationPromise: Promise<void> | null = null;
 
 export const useCrisisStore = create<CrisisState>((set, get) => ({
   activeTab: 'home',
+  activeDistrict: (localStorage.getItem('nirnay_district') as DistrictId | null) || DEFAULT_DISTRICT.id,
   viewMode3D: false, // Default to clean, pixel-perfect 2D map matching uploaded screens with seamless 1-click 3D Digital Twin toggle
   liveContextActive: true,
   selectedRoad: null,
@@ -152,6 +156,11 @@ export const useCrisisStore = create<CrisisState>((set, get) => ({
   },
 
   setActiveTab: (tab) => set({ activeTab: tab }),
+  setActiveDistrict: (district) => {
+    localStorage.setItem('nirnay_district', district);
+    set({ activeDistrict: district, selectedRoad: null, selectedZone: null });
+  },
+
 
   setViewMode3D: (is3D) => set({ viewMode3D: is3D }),
   toggleViewMode3D: () => set((state) => ({ viewMode3D: !state.viewMode3D })),

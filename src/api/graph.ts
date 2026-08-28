@@ -10,12 +10,11 @@ export interface GraphData {
 }
 
 export async function fetchGraphData(): Promise<GraphData> {
-  // Always return local mock data — no backend required for static deployment
-  return {
-    roads: INITIAL_ROADS,
-    facilities: INITIAL_FACILITIES,
-    zones: INITIAL_ZONES,
-    assets: INITIAL_ASSETS,
-    timestamp: new Date().toISOString(),
-  };
+  try {
+    const response = await fetch('/api/graph');
+    if (response.ok) return await response.json() as GraphData;
+  } catch {
+    // Keep the dashboard usable when the API is unavailable.
+  }
+  return { roads: INITIAL_ROADS, facilities: INITIAL_FACILITIES, zones: INITIAL_ZONES, assets: INITIAL_ASSETS, timestamp: new Date().toISOString() };
 }

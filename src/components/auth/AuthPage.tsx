@@ -1,398 +1,104 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuthStore } from '../../auth/useAuthStore';
-import {
-  Shield,
-  Eye,
-  EyeOff,
-  Lock,
-  Mail,
-  User,
-  AlertCircle,
-  Loader2,
-  CheckCircle2,
-  ArrowRight,
-  Zap,
-  Radio,
-} from 'lucide-react';
+import { AlertCircle, ArrowRight, Eye, EyeOff, Lock, Mail, Mountain, User, Waves, Loader2 } from 'lucide-react';
+import nirnayLogo from '../../assets/nirnay-logo.png';
 
-declare global {
-  interface Window {
-    google?: {
-      accounts: {
-        id: {
-          initialize: (config: {
-            client_id: string;
-            callback: (response: { credential: string }) => void;
-            auto_select?: boolean;
-            cancel_on_tap_outside?: boolean;
-          }) => void;
-          prompt: () => void;
-          renderButton: (
-            parent: HTMLElement,
-            options: {
-              theme?: string;
-              size?: string;
-              text?: string;
-              shape?: string;
-              width?: number;
-            }
-          ) => void;
-        };
-      };
-    };
-  }
-}
-
-const GOOGLE_CLIENT_ID =
-  (import.meta as unknown as { env: Record<string, string> }).env?.VITE_GOOGLE_CLIENT_ID ??
-  'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
-
-function scorePassword(pw: string): { score: number; label: string; color: string } {
+function scorePassword(password: string): { score: number; label: string; color: string } {
   let score = 0;
-  if (pw.length >= 8)  score++;
-  if (pw.length >= 12) score++;
-  if (/[A-Z]/.test(pw)) score++;
-  if (/[0-9]/.test(pw)) score++;
-  if (/[^A-Za-z0-9]/.test(pw)) score++;
-
-  if (score <= 1) return { score, label: 'Very Weak',   color: '#ff3b30' };
-  if (score === 2) return { score, label: 'Weak',        color: '#ff9500' };
-  if (score === 3) return { score, label: 'Fair',        color: '#f59e0b' };
-  if (score === 4) return { score, label: 'Strong',      color: '#00d9ff' };
-  return               { score, label: 'Very Strong',  color: '#00ff99' };
+  if (password.length >= 8) score++;
+  if (password.length >= 12) score++;
+  if (/[A-Z]/.test(password)) score++;
+  if (/[0-9]/.test(password)) score++;
+  if (/[^A-Za-z0-9]/.test(password)) score++;
+  if (score <= 1) return { score, label: 'Very weak', color: '#f87171' };
+  if (score === 2) return { score, label: 'Weak', color: '#fb923c' };
+  if (score === 3) return { score, label: 'Fair', color: '#fbbf24' };
+  if (score === 4) return { score, label: 'Strong', color: '#38bdf8' };
+  return { score, label: 'Very strong', color: '#4ade80' };
 }
-
-const PARTICLES = Array.from({ length: 22 }, (_, i) => ({
-  id: i,
-  x: Math.random() * 100,
-  y: Math.random() * 100,
-  size: Math.random() * 2 + 1,
-  opacity: Math.random() * 0.4 + 0.1,
-  dur: Math.random() * 8 + 6,
-}));
 
 export const AuthPage: React.FC = () => {
-  const { login, signup, loginWithGoogle, isLoading, error, clearError } = useAuthStore();
-
+  const { login, signup, isLoading, error, clearError } = useAuthStore();
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPw, setShowPw] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [localError, setLocalError] = useState('');
-
-  const googleButtonRef = useRef<HTMLDivElement>(null);
-  const gsiLoaded = useRef(false);
-
-  const pwStrength = mode === 'signup' && password.length > 0 ? scorePassword(password) : null;
-
-  const initGoogle = useCallback(() => {
-    if (!window.google?.accounts?.id) return;
-    window.google.accounts.id.initialize({
-      client_id: GOOGLE_CLIENT_ID,
-      callback: async (response) => {
-        await loginWithGoogle(response.credential);
-      },
-      auto_select: false,
-      cancel_on_tap_outside: true,
-    });
-    if (googleButtonRef.current) {
-      window.google.accounts.id.renderButton(googleButtonRef.current, {
-        theme: 'filled_black',
-        size: 'large',
-        text: mode === 'signup' ? 'signup_with' : 'signin_with',
-        shape: 'rectangular',
-        width: 340,
-      });
-    }
-    gsiLoaded.current = true;
-  }, [loginWithGoogle, mode]);
+  const [disasterMode, setDisasterMode] = useState<'flood' | 'earthquake'>('earthquake');
 
   useEffect(() => {
-    const existing = document.getElementById('gsi-script');
-    if (existing) { initGoogle(); return; }
-    const script = document.createElement('script');
-    script.id = 'gsi-script';
-    script.src = 'https://accounts.google.com/gsi/client';
-    script.async = true;
-    script.defer = true;
-    script.onload = initGoogle;
-    document.head.appendChild(script);
-  }, [initGoogle]);
+    const timer = window.setInterval(() => {
+      setDisasterMode((current) => current === 'flood' ? 'earthquake' : 'flood');
+    }, 7000);
+    return () => window.clearInterval(timer);
+  }, []);
 
-  useEffect(() => {
-    if (gsiLoaded.current) initGoogle();
-  }, [mode, initGoogle]);
+  const passwordStrength = mode === 'signup' && password ? scorePassword(password) : null;
 
-  function switchMode(next: 'login' | 'signup') {
-    setMode(next);
-    setLocalError('');
-    clearError();
+  function switchMode(nextMode: 'login' | 'signup') {
+    setMode(nextMode);
     setName(''); setEmail(''); setPassword(''); setConfirmPassword('');
+    setLocalError(''); clearError();
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setLocalError('');
-    clearError();
-
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    setLocalError(''); clearError();
     if (mode === 'signup') {
-      if (!name.trim()) { setLocalError('Full name is required.'); return; }
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setLocalError('Enter a valid email address.'); return; }
-      if (password.length < 8) { setLocalError('Password must be at least 8 characters.'); return; }
-      if (password !== confirmPassword) { setLocalError('Passwords do not match.'); return; }
+      if (!name.trim()) return setLocalError('Operator name is required.');
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setLocalError('Enter a valid operator ID.');
+      if (password.length < 8) return setLocalError('Access key must be at least 8 characters.');
+      if (password !== confirmPassword) return setLocalError('Access keys do not match.');
       await signup(name, email, password);
     } else {
-      if (!email.trim() || !password) { setLocalError('Email and password are required.'); return; }
+      if (!email.trim() || !password) return setLocalError('Operator ID and access key are required.');
       await login(email, password);
     }
   }
 
-  const displayError = localError || error;
+  const image = disasterMode === 'flood'
+    ? 'https://sc0.blr1.digitaloceanspaces.com/large/890727-bxivrwaivt-1534423494.jpg'
+    : 'https://static.vecteezy.com/system/resources/thumbnails/057/364/663/small/cracked-asphalt-road-and-rubble-in-earthquake-aftermath-landscape-photo.jpg';
 
   return (
-    <div className="min-h-screen w-full bg-[#050506] flex items-center justify-center p-4 relative overflow-hidden">
-
-      {/* Animated grid */}
-      <div className="absolute inset-0 opacity-[0.035]" style={{
-        backgroundImage: 'linear-gradient(rgba(0,217,255,1) 1px,transparent 1px),linear-gradient(90deg,rgba(0,217,255,1) 1px,transparent 1px)',
-        backgroundSize: '56px 56px',
-      }} />
-
-      {/* Floating particles */}
-      {PARTICLES.map((p) => (
-        <div key={p.id} className="absolute rounded-full bg-[#00d9ff] pointer-events-none" style={{
-          left: `${p.x}%`, top: `${p.y}%`,
-          width: p.size, height: p.size, opacity: p.opacity,
-          animation: `floatParticle ${p.dur}s ease-in-out infinite alternate`,
-          animationDelay: `${p.id * 0.3}s`,
-        }} />
-      ))}
-
-      {/* Radial glow */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_60%_at_50%_40%,rgba(0,60,100,0.25),transparent)]" />
-
-      {/* Desktop left panel */}
-      <div className="hidden lg:flex absolute left-0 top-0 bottom-0 w-80 flex-col justify-between p-10 border-r border-white/5">
-        <div>
-          <div className="flex items-center gap-3 mb-12">
-            <div className="w-9 h-9 bg-red-600 rounded-md rotate-45 flex items-center justify-center shadow-[0_0_18px_rgba(220,38,38,0.5)]">
-              <div className="bg-white rounded-full -rotate-45" style={{ width: 18, height: 18 }} />
-            </div>
-            <span className="text-2xl font-black tracking-[0.2em] text-white font-mono">NIRNAY</span>
+    <main className="relative min-h-screen w-full overflow-y-auto bg-[#11100f] bg-cover bg-center bg-fixed px-4 py-8 sm:px-8" style={{ backgroundImage: `linear-gradient(rgba(8,8,8,.45),rgba(8,8,8,.8)),url('${image}')` }}>
+      <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-5xl items-center justify-center">
+        <section className="grid w-full max-w-[860px] overflow-hidden rounded-sm border border-white/25 bg-black/50 shadow-2xl backdrop-blur-[2px] lg:grid-cols-[.82fr_1.18fr]">
+          <div className="p-6 text-center sm:p-10 lg:flex lg:flex-col lg:justify-center lg:text-left">
+            <img src={nirnayLogo} alt="Nirnay - Decide, Act, Save" className="mx-auto mb-5 w-full max-w-[250px] object-contain lg:mx-0" />
+            <button type="button" onClick={() => setDisasterMode((current) => current === 'flood' ? 'earthquake' : 'flood')} className="mb-2 flex w-full items-center justify-center gap-2 font-mono text-[10px] uppercase tracking-[.26em] text-orange-300 hover:text-white lg:justify-start">
+              {disasterMode === 'flood' ? <Waves className="h-3.5 w-3.5" /> : <Mountain className="h-3.5 w-3.5" />}{disasterMode} response
+            </button>
+            <h1 className="font-headline text-4xl font-black tracking-tight text-white sm:text-5xl">Emergency<br />Access</h1>
+            <p className="mx-auto mt-3 max-w-[260px] text-xs leading-relaxed text-white/70 lg:mx-0">Secure authentication required for field operations.</p>
           </div>
-          <h2 className="text-xl font-bold text-white font-mono mb-3 leading-tight">Emergency Decision<br />Command System</h2>
-          <p className="text-sm text-white/40 leading-relaxed">Real-time crisis intelligence, autonomous field assets, and AI-powered routing for disaster response commanders.</p>
-        </div>
-        <div className="flex flex-col gap-4">
-          {[
-            { icon: <Radio className="w-4 h-4" />, label: 'Live Operations', value: '1 Active' },
-            { icon: <Zap className="w-4 h-4" />,  label: 'Response Assets', value: '4 Deployed' },
-            { icon: <Shield className="w-4 h-4" />, label: 'System Status', value: 'OPERATIONAL' },
-          ].map((s) => (
-            <div key={s.label} className="flex items-center gap-3">
-              <div className="text-[#00d9ff] opacity-70">{s.icon}</div>
-              <div>
-                <div className="text-[10px] font-mono text-white/30 uppercase tracking-widest">{s.label}</div>
-                <div className="text-xs font-mono font-bold text-white">{s.value}</div>
-              </div>
-            </div>
-          ))}
-          <div className="mt-2 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-[#00ff99] animate-ping" />
-            <span className="text-[10px] font-mono text-[#00ff99] uppercase tracking-widest">Crisis Active · FL-2024-0812-VZG</span>
+
+          <div className="border-t border-white/15 p-6 sm:p-10 lg:border-l lg:border-t-0">
+          <div className="mb-6 flex border-b border-white/25">
+            {(['login', 'signup'] as const).map((item) => <button key={item} type="button" onClick={() => switchMode(item)} className={`flex-1 border-b-2 py-3 font-mono text-[11px] font-bold uppercase tracking-[.18em] transition-colors ${mode === item ? 'border-orange-400 text-orange-300' : 'border-transparent text-white/50 hover:text-white'}`}>{item === 'login' ? 'Sign in' : 'Sign up'}</button>)}
           </div>
-        </div>
+
+          <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+            {mode === 'signup' && <InputField label="Operator name" type="text" value={name} onChange={setName} placeholder="Your full name" icon={<User className="h-4 w-4" />} autoComplete="name" />}
+            <InputField label="Operator ID" type="email" value={email} onChange={setEmail} placeholder="operator@nirnay.org" icon={<Mail className="h-4 w-4" />} autoComplete="email" />
+            <InputField label="Access key" type={showPassword ? 'text' : 'password'} value={password} onChange={setPassword} placeholder="Enter access key" icon={<Lock className="h-4 w-4" />} autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} trailingIcon={<button type="button" onClick={() => setShowPassword((value) => !value)} className="text-white/50 hover:text-white" tabIndex={-1}>{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button>} />
+            {passwordStrength && <div className="flex items-center gap-2 font-mono text-[10px] text-white/60"><div className="flex flex-1 gap-1">{Array.from({ length: 5 }).map((_, index) => <span key={index} className="h-1 flex-1" style={{ background: index < passwordStrength.score ? passwordStrength.color : 'rgba(255,255,255,.2)' }} />)}</div><span style={{ color: passwordStrength.color }}>{passwordStrength.label}</span></div>}
+            {mode === 'signup' && <InputField label="Confirm access key" type={showConfirm ? 'text' : 'password'} value={confirmPassword} onChange={setConfirmPassword} placeholder="Repeat access key" icon={<Lock className="h-4 w-4" />} autoComplete="new-password" trailingIcon={<button type="button" onClick={() => setShowConfirm((value) => !value)} className="text-white/50 hover:text-white" tabIndex={-1}>{showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button>} />}
+            {(localError || error) && <div className="flex items-start gap-2 border border-red-300/40 bg-red-950/70 p-3 text-xs text-red-100"><AlertCircle className="h-4 w-4 shrink-0" />{localError || error}</div>}
+            <button type="submit" disabled={isLoading} className="mt-2 flex min-h-12 items-center justify-center gap-2 bg-orange-500 px-4 font-mono text-xs font-black uppercase tracking-[.16em] text-white shadow-[0_8px_25px_rgba(249,115,22,.35)] transition-colors hover:bg-orange-400 disabled:opacity-50">{isLoading ? <><Loader2 className="h-4 w-4 animate-spin" /> Authorizing</> : <>{mode === 'login' ? 'Authorize deployment' : 'Create operator access'} <ArrowRight className="h-4 w-4" /></>}</button>
+          </form>
+
+          <div className="mt-6 flex items-center justify-between gap-3 font-mono text-[10px] text-white/55"><button type="button" onClick={() => setDisasterMode((current) => current === 'flood' ? 'earthquake' : 'flood')} className="uppercase tracking-wider hover:text-white">Switch to {disasterMode === 'flood' ? 'earthquake' : 'flood'}</button><span>Node ALPHA-09 · Secure</span></div>
+          </div>
+        </section>
       </div>
-
-      {/* Main card */}
-      <div className="relative z-10 w-full max-w-md lg:ml-80">
-        <div className="bg-[#0a0a0d]/95 border border-white/10 rounded-2xl overflow-hidden shadow-[0_25px_80px_rgba(0,0,0,0.7)]" style={{ backdropFilter: 'blur(24px)' }}>
-
-          {/* Accent bar */}
-          <div className="h-1 w-full bg-gradient-to-r from-red-600 via-[#00d9ff] to-[#00ff99]" />
-
-          <div className="p-8">
-            {/* Mobile logo */}
-            <div className="lg:hidden flex items-center gap-2.5 mb-6">
-              <div className="w-7 h-7 bg-red-600 rounded-sm rotate-45 flex items-center justify-center shadow-[0_0_12px_rgba(220,38,38,0.4)]">
-                <div className="w-3.5 h-3.5 bg-white rounded-full -rotate-45" />
-              </div>
-              <span className="text-lg font-black tracking-[0.2em] text-white font-mono">NIRNAY</span>
-            </div>
-
-            {/* Title */}
-            <div className="mb-6">
-              <h1 className="text-xl md:text-2xl font-black text-white font-mono tracking-tight">
-                {mode === 'login' ? 'Access Command System' : 'Create Operator Account'}
-              </h1>
-              <p className="text-xs text-white/40 mt-1 font-mono">
-                {mode === 'login'
-                  ? 'Authenticate to enter the Nirnay Emergency Command Centre'
-                  : 'Register as a new crisis response operator'}
-              </p>
-            </div>
-
-            {/* Mode tabs */}
-            <div className="flex rounded-lg bg-white/5 border border-white/8 p-0.5 mb-6 gap-0.5">
-              {(['login', 'signup'] as const).map((m) => (
-                <button key={m} onClick={() => switchMode(m)} className={`flex-1 py-2 rounded-md text-xs font-mono font-bold uppercase tracking-wider transition-all cursor-pointer ${
-                  mode === m ? 'bg-[#00d9ff] text-[#061014] shadow-[0_0_14px_rgba(0,217,255,0.35)]' : 'text-white/40 hover:text-white'
-                }`}>
-                  {m === 'login' ? '🔐 Sign In' : '⚡ Register'}
-                </button>
-              ))}
-            </div>
-
-            {/* Google button */}
-            <div className="mb-5">
-              <div ref={googleButtonRef} className="w-full flex justify-center" style={{ minHeight: 44 }} />
-              {!gsiLoaded.current && (
-                <button type="button" onClick={() => window.google?.accounts?.id?.prompt()}
-                  className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-lg bg-white text-[#1a1a1a] font-bold text-sm hover:bg-gray-100 transition-colors border border-white/20 cursor-pointer">
-                  <svg width="18" height="18" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                  </svg>
-                  Continue with Google
-                </button>
-              )}
-            </div>
-
-            {/* Divider */}
-            <div className="flex items-center gap-3 mb-5">
-              <div className="flex-1 h-px bg-white/10" />
-              <span className="text-[10px] font-mono text-white/30 uppercase tracking-widest">or with credentials</span>
-              <div className="flex-1 h-px bg-white/10" />
-            </div>
-
-            {/* Form */}
-            <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
-              {mode === 'signup' && (
-                <InputField label="Full Name" type="text" value={name} onChange={setName}
-                  placeholder="Cmdr. Your Name" icon={<User className="w-4 h-4" />} autoComplete="name" />
-              )}
-
-              <InputField label="Email Address" type="email" value={email} onChange={setEmail}
-                placeholder="you@domain.com" icon={<Mail className="w-4 h-4" />}
-                autoComplete={mode === 'signup' ? 'email' : 'username'} />
-
-              <div className="flex flex-col gap-1.5">
-                <InputField label="Password" type={showPw ? 'text' : 'password'} value={password} onChange={setPassword}
-                  placeholder={mode === 'signup' ? 'Min. 8 chars, mixed case + symbols' : '••••••••••••'}
-                  icon={<Lock className="w-4 h-4" />}
-                  autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-                  trailingIcon={
-                    <button type="button" onClick={() => setShowPw(v => !v)}
-                      className="text-white/30 hover:text-white transition-colors cursor-pointer" tabIndex={-1}>
-                      {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  } />
-                {pwStrength && (
-                  <div className="mt-0.5">
-                    <div className="flex gap-1 mb-1">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <div key={i} className="flex-1 h-1 rounded-full transition-all duration-300"
-                          style={{ background: i < pwStrength.score ? pwStrength.color : 'rgba(255,255,255,0.08)' }} />
-                      ))}
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[10px] font-mono text-white/40">Strength</span>
-                      <span className="text-[10px] font-mono font-bold" style={{ color: pwStrength.color }}>{pwStrength.label}</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {mode === 'signup' && (
-                <div className="flex flex-col gap-1.5">
-                  <InputField label="Confirm Password" type={showConfirm ? 'text' : 'password'}
-                    value={confirmPassword} onChange={setConfirmPassword}
-                    placeholder="Re-enter your password" icon={<Lock className="w-4 h-4" />}
-                    autoComplete="new-password"
-                    trailingIcon={
-                      <button type="button" onClick={() => setShowConfirm(v => !v)}
-                        className="text-white/30 hover:text-white transition-colors cursor-pointer" tabIndex={-1}>
-                        {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    } />
-                  {confirmPassword.length > 0 && (
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      {password === confirmPassword
-                        ? <><CheckCircle2 className="w-3 h-3 text-[#00ff99]" /><span className="text-[10px] font-mono text-[#00ff99]">Passwords match</span></>
-                        : <><AlertCircle className="w-3 h-3 text-red-400" /><span className="text-[10px] font-mono text-red-400">Passwords do not match</span></>}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {displayError && (
-                <div className="flex items-start gap-2.5 p-3 rounded-lg bg-red-500/10 border border-red-500/30 animate-in fade-in slide-in-from-top-1">
-                  <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-                  <p className="text-xs font-mono text-red-300 leading-relaxed">{displayError}</p>
-                </div>
-              )}
-
-              <button type="submit" disabled={isLoading} className={`w-full py-3.5 rounded-xl font-mono font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2.5 transition-all active:scale-[0.98] mt-1 ${
-                isLoading ? 'bg-white/10 text-white/30 cursor-not-allowed'
-                : mode === 'login'
-                  ? 'bg-[#00d9ff] text-[#061014] hover:bg-[#00c8ed] shadow-[0_0_28px_rgba(0,217,255,0.4)] cursor-pointer'
-                  : 'bg-gradient-to-r from-red-600 to-red-500 text-white hover:from-red-500 hover:to-red-400 shadow-[0_0_28px_rgba(220,38,38,0.4)] cursor-pointer'
-              }`}>
-                {isLoading
-                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Authenticating…</>
-                  : mode === 'login'
-                    ? <><Shield className="w-4 h-4" /> Enter Command System <ArrowRight className="w-4 h-4" /></>
-                    : <><Zap className="w-4 h-4" /> Create Operator Account <ArrowRight className="w-4 h-4" /></>}
-              </button>
-            </form>
-
-            {/* Switch mode */}
-            <p className="text-center text-[11px] font-mono text-white/30 mt-5">
-              {mode === 'login' ? "Don't have an account?" : 'Already registered?'}{' '}
-              <button type="button" onClick={() => switchMode(mode === 'login' ? 'signup' : 'login')}
-                className="text-[#00d9ff] hover:text-white font-bold cursor-pointer underline underline-offset-2">
-                {mode === 'login' ? 'Register here' : 'Sign in'}
-              </button>
-            </p>
-
-            {/* Security notice */}
-            <div className="mt-5 flex items-start gap-2 p-3 rounded-lg bg-white/3 border border-white/5">
-              <Lock className="w-3.5 h-3.5 text-white/25 shrink-0 mt-0.5" />
-              <p className="text-[9px] font-mono text-white/25 leading-relaxed">
-                Passwords hashed with PBKDF2 · SHA-256 · 100,000 iterations via native Web Crypto API.
-                Session tokens are 128-bit cryptographically random values.
-                No credentials are transmitted to any external server in this MVP.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <style>{`@keyframes floatParticle { 0% { transform: translateY(0px) translateX(0px); } 100% { transform: translateY(-18px) translateX(8px); } }`}</style>
-    </div>
+    </main>
   );
 };
 
-function InputField({ label, type, value, onChange, placeholder, icon, autoComplete, trailingIcon }: {
-  label: string; type: string; value: string; onChange: (v: string) => void;
-  placeholder: string; icon: React.ReactNode; autoComplete?: string; trailingIcon?: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label className="text-[10px] font-mono font-bold text-white/50 uppercase tracking-widest">{label}</label>
-      <div className="relative flex items-center">
-        <div className="absolute left-3 text-white/25 pointer-events-none">{icon}</div>
-        <input type={type} value={value} onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder} autoComplete={autoComplete}
-          className="w-full bg-white/5 border border-white/10 rounded-lg pl-10 pr-10 py-3 text-sm text-white placeholder:text-white/20 font-mono outline-none focus:border-[#00d9ff]/60 focus:bg-white/8 transition-all"
-          style={{ fontSize: 13 }} />
-        {trailingIcon && <div className="absolute right-3">{trailingIcon}</div>}
-      </div>
-    </div>
-  );
+function InputField({ label, type, value, onChange, placeholder, icon, autoComplete, trailingIcon }: { label: string; type: string; value: string; onChange: (value: string) => void; placeholder: string; icon: React.ReactNode; autoComplete?: string; trailingIcon?: React.ReactNode }) {
+  return <div className="flex flex-col gap-1.5"><label className="font-mono text-[10px] font-bold uppercase tracking-widest text-white/60">{label}</label><div className="relative flex items-center"><div className="pointer-events-none absolute left-3 text-white/45">{icon}</div><input type={type} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} autoComplete={autoComplete} className="w-full rounded-sm border border-white/30 bg-black/35 py-3 pl-10 pr-10 text-sm text-white outline-none transition-all placeholder:text-white/40 focus:border-orange-300 focus:bg-black/50" />{trailingIcon && <div className="absolute right-3">{trailingIcon}</div>}</div></div>;
 }

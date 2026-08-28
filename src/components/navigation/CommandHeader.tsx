@@ -13,6 +13,7 @@ import {
   Activity,
   CheckCircle2,
 } from 'lucide-react';
+import { DISTRICTS } from '../../data/districts';
 
 export const CommandHeader: React.FC = () => {
   const {
@@ -24,7 +25,10 @@ export const CommandHeader: React.FC = () => {
     resetAllSimulation,
     layerFilters,
     toggleLayer,
+    activeDistrict,
+    setActiveDistrict,
   } = useCrisisStore();
+  const selectedDistrict = DISTRICTS.find((district) => district.id === activeDistrict) ?? DISTRICTS[0];
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isLayersOpen, setIsLayersOpen] = useState(false);
@@ -47,12 +51,18 @@ export const CommandHeader: React.FC = () => {
 
           <div className="hidden sm:flex flex-col">
             <span className="text-[9px] text-white/40 uppercase tracking-tighter font-mono">Crisis ID</span>
-            <span className="text-xs font-mono text-white/80 tracking-tight">FL-2024-0812-MUM</span>
+            <span className="text-xs font-mono text-white/80 tracking-tight">{selectedDistrict.crisisLabel}</span>
           </div>
         </div>
 
         {/* Center: Live Operation Status & Metrics (Desktop) */}
         <div className="hidden lg:flex items-center gap-6 xl:gap-8">
+          <label className="flex items-center gap-2 text-left">
+            <span className="text-[9px] text-white/40 uppercase font-mono tracking-wider">District</span>
+            <select value={activeDistrict} onChange={(event) => setActiveDistrict(event.target.value as typeof activeDistrict)} className="bg-[#14151b] border border-white/10 rounded px-2 py-1 text-xs font-mono text-white outline-none">
+              {DISTRICTS.map((district) => <option key={district.id} value={district.id}>{district.shortName}</option>)}
+            </select>
+          </label>
           <div className="text-center">
             <p className="text-[9px] text-white/40 uppercase font-mono tracking-wider">Severity</p>
             <p className="text-xs xl:text-sm font-bold text-red-500 font-mono">CRITICAL (CAT 4)</p>

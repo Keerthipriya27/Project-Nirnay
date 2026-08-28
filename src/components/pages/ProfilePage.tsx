@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useAuthStore } from '../../auth/useAuthStore';
 import {
   Shield,
   User,
@@ -10,7 +11,6 @@ import {
   Bell,
   BrainCircuit,
   Zap,
-  Globe,
   ChevronRight,
   Edit3,
   LogOut,
@@ -26,14 +26,20 @@ const MISSIONS = [
 ];
 
 export const ProfilePage: React.FC = () => {
+  const { user, logout } = useAuthStore();
   const [notifyOps, setNotifyOps]       = useState(true);
   const [notifyAI, setNotifyAI]         = useState(true);
-  const [darkMode, setDarkMode]         = useState(true);
   const [editMode, setEditMode]         = useState(false);
-  const [name, setName]                 = useState('Cmdr. Keerthipriya');
+  const [name, setName]                 = useState(user?.name || 'Operator');
   const [role, setRole]                 = useState('Crisis Response Commander');
   const [editedName, setEditedName]     = useState(name);
   const [editedRole, setEditedRole]     = useState(role);
+
+  useEffect(() => {
+    if (!user) return;
+    setName(user.name);
+    setEditedName(user.name);
+  }, [user]);
 
   function saveEdit() {
     setName(editedName);
@@ -87,18 +93,19 @@ export const ProfilePage: React.FC = () => {
                 <>
                   <h2 className="text-xl md:text-2xl font-mono font-black text-white">{name}</h2>
                   <p className="text-sm text-white/50 mt-0.5">{role}</p>
+                  <p className="text-xs text-white/35 mt-1 font-mono">{user?.email} · {user?.provider === 'google' ? 'Google account' : 'Operator account'}</p>
                 </>
               )}
 
               <div className="flex flex-wrap justify-center sm:justify-start gap-2 mt-3">
                 <span className="text-[9px] font-mono font-bold px-2 py-1 rounded bg-red-500/15 border border-red-500/30 text-red-400 uppercase tracking-widest">
-                  NIRNAY NODE: ALPHA-09
+                  NIRNAY NODE: {user?.nodeId || 'UNASSIGNED'}
                 </span>
                 <span className="text-[9px] font-mono font-bold px-2 py-1 rounded bg-[#00ff99]/10 border border-[#00ff99]/30 text-[#00ff99] uppercase tracking-widest">
                   ● ONLINE
                 </span>
                 <span className="text-[9px] font-mono font-bold px-2 py-1 rounded bg-blue-500/15 border border-blue-500/30 text-blue-400 uppercase tracking-widest">
-                  CLEARANCE L5
+                  CLEARANCE L{user?.clearanceLevel ?? 0}
                 </span>
               </div>
             </div>
@@ -166,7 +173,6 @@ export const ProfilePage: React.FC = () => {
           {[
             { label: 'Ops Alert Notifications', sub: 'New incidents, asset status', state: notifyOps, toggle: () => setNotifyOps(v => !v), icon: <Bell className="w-4 h-4" /> },
             { label: 'AI Decision Alerts', sub: 'Gemini recommendations', state: notifyAI, toggle: () => setNotifyAI(v => !v), icon: <BrainCircuit className="w-4 h-4" /> },
-            { label: 'Dark Command Theme', sub: 'High-contrast crisis UI', state: darkMode, toggle: () => setDarkMode(v => !v), icon: <Globe className="w-4 h-4" /> },
           ].map(s => (
             <div key={s.label} className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5">
               <div className="flex items-center gap-3">
@@ -217,7 +223,7 @@ export const ProfilePage: React.FC = () => {
         {/* ══════════════════════════════
             SIGN OUT
         ══════════════════════════════ */}
-        <button className="w-full py-3 rounded-xl border border-red-500/20 bg-red-600/10 hover:bg-red-600/20 text-red-400 font-mono font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-[0.98]">
+        <button onClick={logout} className="w-full py-3 rounded-xl border border-red-500/20 bg-red-600/10 hover:bg-red-600/20 text-red-400 font-mono font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-[0.98]">
           <LogOut className="w-4 h-4" />
           Deactivate Session
         </button>

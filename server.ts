@@ -4,14 +4,10 @@ import { createServer as createViteServer } from 'vite';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
 import {
-  INITIAL_ASSETS,
-  INITIAL_FACILITIES,
-  INITIAL_INTELLIGENCE_FEED,
-  INITIAL_ROADS,
-  INITIAL_ROUTES,
-  INITIAL_ZONES,
-  DISASTER_TIMELINE_EVENTS,
+  BROADWAY_SIMULATION_RESULT,
 } from './src/data/mockCrisisData';
+import { getCollection, getRecord, getRoadConfidence, hasSupabaseConfig, saveSimulation } from './src/server/supabase';
+import { EmergencyRoute, RoadSegment } from './src/types';
 
 dotenv.config();
 
@@ -41,112 +37,69 @@ async function startServer() {
   app.use(express.json());
 
   // Health check endpoint
-  app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', service: 'Nirnay Emergency Decision Engine' });
+  app.get('/api/health', (_req, res) => {
+    res.json({
+      status: 'ok',
+      service: 'Nirnay Emergency Decision Engine',
+      database: hasSupabaseConfig() ? 'supabase' : 'fallback',
+      ai: Boolean(process.env.GEMINI_API_KEY),
+    });
   });
 
   // Graph endpoint (OpenStreetMap / GeoJSON spatial nodes)
-  app.get('/api/graph', (req, res) => {
+  app.get('/api/graph', async (_req, res) => {
+    const [roads, facilities, zones, assets] = await Promise.all([
+      getCollection<RoadSegment>('roads'),
+      getCollection('facilities'),
+      getCollection('zones'),
+      getCollection('assets'),
+    ]);
     res.json({
-      roads: INITIAL_ROADS,
-      facilities: INITIAL_FACILITIES,
-      zones: INITIAL_ZONES,
-      assets: INITIAL_ASSETS,
+      roads,
+      facilities,
+      zones,
+      assets,
       timestamp: new Date().toISOString(),
     });
   });
 
   // Timeline, intelligence, and route data used by the existing frontend API modules.
-  app.get('/api/events', (req, res) => {
-    res.json(DISASTER_TIMELINE_EVENTS);
+  app.get('/api/events', async (_req, res) => {
+    res.json(await getCollection('timeline_events'));
   });
 
-  app.get('/api/intelligence', (req, res) => {
-    res.json(INITIAL_INTELLIGENCE_FEED);
+  app.get('/api/intelligence', async (_req, res) => {
+    res.json(await getCollection('intelligence_reports'));
   });
 
-  app.get('/api/routes', (req, res) => {
-    res.json(INITIAL_ROUTES);
+  app.get('/api/routes', async (_req, res) => {
+    res.json(await getCollection<EmergencyRoute>('routes'));
   });
 
     // P4: Road confidence endpoint
-  app.get('/api/confidence/:roadId', (req, res) => {
+  app.get('/api/confidence/:roadId', async (req, res) => {
     const { roadId } = req.params;
-
-    const confidenceData: Record<string, {
-      roadName: string;
-      status: string;
-      confidenceScore: number;
-      uncertaintyDescription: string;
-      sources: Array<{
-        type: string;
-        description: string;
-        reliability: number;
-      }>;
-    }> = {
-      'road-broadway': {
-        roadName: 'Broadway St.',
-        status: 'CRITICAL',
-        confidenceScore: 89,
-        uncertaintyDescription:
-          'High confidence based on verified flood sensors, citizen reports, and satellite observations.',
-        sources: [
-          {
-            type: 'HYDRO_SENSOR',
-            description: 'Water depth and flow sensor',
-            reliability: 0.96,
-          },
-          {
-            type: 'CITIZEN_REPORT',
-            description: 'Verified reports of stalled vehicles',
-            reliability: 0.82,
-          },
-          {
-            type: 'SATELLITE',
-            description: 'Satellite-based flood observation',
-            reliability: 0.94,
-          },
-        ],
-      },
-    };
-
-    const data = confidenceData[roadId];
-
-    if (!data) {
-      return res.status(404).json({
-        error: 'Road confidence data not found',
-        roadId,
-      });
-    }
-
+    const road = await getRecord<RoadSegment>('roads', roadId);
+    if (!road) return res.status(404).json({ error: 'Road not found', roadId });
+    const confidence = await getRoadConfidence(roadId);
     res.json({
       roadId,
-      ...data,
+      roadName: road.name,
+      status: road.status,
+      confidenceScore: confidence?.confidenceScore ?? road.confidenceScore,
+      uncertaintyDescription: confidence?.uncertaintyDescription ?? road.uncertaintyDescription,
+      sources: confidence?.sources ?? road.sources,
     });
   });
 
   // Simulation endpoint
-  app.post('/api/simulate/close_road/:id', (req, res) => {
+  app.post('/api/simulate/close_road/:id', async (req, res) => {
     const { id } = req.params;
-    res.json({
-      simulatedEntityId: id,
-      simulatedEntityName: id === 'road-broadway' ? 'Broadway St.' : 'Simulated Arterial',
-      simulationType: 'ROAD_CLOSURE',
-      peopleAffected: 12000,
-      hospitalsIsolated: 3,
-      sheltersImpacted: 2,
-      emergencyRoutesChanged: 4,
-      delayAddedMinutes: 12,
-      recommendedAlternative: {
-        routeId: 'route-b-alternate',
-        routeName: 'Route B (East Causeway)',
-        explanation: 'We recommend alternate Route B to maintain hospital access.',
-      },
-      aiExplanation:
-        'Closing Broadway St. prevents transit stall blockades on low-elevation crossings and re-routes emergency responders via the elevated East Causeway.',
-      counterfactualAnalysis:
-        'Keeping Broadway St. open results in 84% probability of ambulance stall within 25 minutes due to 48cm standing flood water.',
-    });
+    const road = await getRecord<RoadSegment>('roads', id);
+    if (!road) return res.status(404).json({ error: 'Road not found', roadId: id });
+    const result = { ...BROADWAY_SIMULATION_RESULT, simulatedEntityId: id, simulatedEntityName: road.name };
+    await saveSimulation(id, result);
+    res.json(result);
   });
 
   // AI Explain endpoint

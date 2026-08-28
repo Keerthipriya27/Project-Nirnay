@@ -132,3 +132,44 @@
   animation: dash-flow 1.5s linear infinite;
 }
 
+.auth-atmosphere {
+  opacity: 0;
+  transition: opacity 1.4s ease-in-out;
+  pointer-events: none;
+}
+
+.auth-atmosphere-active {
+  opacity: 1;
+}
+
+.auth-flood {
+  background:
+    radial-gradient(ellipse at 18% 78%, rgba(14, 165, 233, 0.32), transparent 32%),
+    radial-gradient(ellipse at 78% 18%, rgba(0, 255, 153, 0.1), transparent 28%),
+    repeating-linear-gradient(168deg, transparent 0 30px, rgba(56, 189, 248, 0.08) 31px 33px, transparent 34px 64px);
+  animation: flood-drift 9s ease-in-out infinite alternate;
+}
+
+.auth-earthquake {
+  background:
+    radial-gradient(circle at 62% 42%, rgba(245, 158, 11, 0.2), transparent 20%),
+    linear-gradient(115deg, transparent 0 48%, rgba(245, 158, 11, 0.14) 48.2% 48.5%, transparent 48.7%),
+    linear-gradient(65deg, transparent 0 58%, rgba(255, 68, 68, 0.1) 58.2% 58.5%, transparent 58.7%),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 42px),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 42px);
+  animation: seismic-shift 5s steps(2, end) infinite;
+}
+
+@keyframes flood-drift {
+  from { transform: translate3d(-1%, 1%, 0) scale(1.04); }
+  to { transform: translate3d(1%, -1%, 0) scale(1.08); }
+}
+
+@keyframes seismic-shift {
+  0%, 88%, 100% { transform: translate3d(0, 0, 0); }
+  90% { transform: translate3d(2px, -1px, 0); }
+  92% { transform: translate3d(-2px, 1px, 0); }
+  94% { transform: translate3d(1px, 0, 0); }
+}
+
+

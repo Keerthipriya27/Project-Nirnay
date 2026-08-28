@@ -708,6 +708,58 @@ No additional features should be prioritized until these five capabilities work 
 
 ---
 
+## Current Supabase Setup
+
+The current implementation uses the root Express server as the only database boundary. The browser calls `/api/graph`, `/api/events`, `/api/intelligence`, `/api/routes`, `/api/confidence/:roadId`, and `/api/simulate/close_road/:id`; the server reads and writes Supabase with its service-role key. If Supabase variables are missing, the server deliberately falls back to the bundled demo data.
+
+### 1. Create the Supabase database
+
+1. Create a project at [supabase.com](https://supabase.com).
+2. Open **SQL Editor** and run the complete contents of `supabase/schema.sql`.
+3. Copy the project URL and the **service_role** key from **Project Settings > API**.
+4. Create a local `.env` file in the repository root by copying `.env.example`.
+5. Set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in `.env`.
+6. Seed the current crisis scenario:
+
+```bash
+npm run seed:supabase
+```
+
+The seed command upserts roads, facilities, zones, assets, routes, timeline events, intelligence reports, and road confidence records. It is safe to run again after changing the canonical data in `src/data/mockCrisisData.ts`.
+
+### 2. Configure Gemini
+
+Add the key to the same root `.env` file:
+
+```env
+GEMINI_API_KEY=your-gemini-api-key
+```
+
+The key is read only by `server.ts` and is never sent to the browser. Do not use a `VITE_` prefix for this key and do not commit `.env`. The AI endpoints are `/api/gemini/chat` and `/api/gemini/explain`; without the key, deterministic fallback responses are used.
+
+### 3. Run the connected application
+
+```bash
+npm install
+npm run dev
+```
+
+Open `http://localhost:3000`. The health endpoint reports the active mode:
+
+```text
+http://localhost:3000/api/health
+```
+
+It returns `database: "supabase"` when the connection is configured, otherwise `database: "fallback"`.
+
+### Security notes
+
+- Keep `SUPABASE_SERVICE_ROLE_KEY` and `GEMINI_API_KEY` server-only.
+- The public read policies are intentionally suitable for this demo scenario.
+- For production, add authenticated-user policies, server-side authorization, audit logging, rate limits, and private operational data separation.
+
+---
+
 ## Data Sources
 
 ### OpenStreetMap

@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   Clock,
 } from 'lucide-react';
+import { getDistrict } from '../../data/districts';
 
 /* ── animated counter hook ── */
 function useCounter(target: number, duration = 1600) {
@@ -34,7 +35,8 @@ function useCounter(target: number, duration = 1600) {
 }
 
 export const HomePage: React.FC = () => {
-  const { setActiveTab, zones, assets, intelligenceFeed, isSimulationActive } = useCrisisStore();
+  const { setActiveTab, zones, assets, intelligenceFeed, isSimulationActive, activeDistrict } = useCrisisStore();
+  const district = getDistrict(activeDistrict);
 
   const pop    = useCounter(124302);
   const evac   = useCounter(18200);
@@ -92,7 +94,7 @@ export const HomePage: React.FC = () => {
           <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-red-600/10 border border-red-500/30 backdrop-blur-sm">
             <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
             <span className="text-xs font-mono font-bold text-red-400 tracking-widest uppercase">
-              Live Crisis Active · FL-2024-0812-VZG
+              Live Crisis Active · {district.crisisLabel}
             </span>
           </div>
 
@@ -122,7 +124,7 @@ export const HomePage: React.FC = () => {
       ════════════════════════════════════════ */}
       <div className="max-w-5xl mx-auto px-4 md:px-6 py-8 grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Affected Population', value: pop.toLocaleString(), sub: 'Visakhapatnam region', color: 'text-red-400', icon: <Users className="w-5 h-5" />, bg: 'bg-red-500/10 border-red-500/20' },
+          { label: 'Affected Population', value: pop.toLocaleString(), sub: `${district.shortName} district`, color: 'text-red-400', icon: <Users className="w-5 h-5" />, bg: 'bg-red-500/10 border-red-500/20' },
           { label: 'Evacuated', value: evac.toLocaleString(), sub: 'Confirmed safe', color: 'text-[#00ff99]', icon: <CheckCircle2 className="w-5 h-5" />, bg: 'bg-emerald-500/10 border-emerald-500/20' },
           { label: 'Hospital Beds Open', value: beds.toString(), sub: 'City Gen + Highland', color: 'text-blue-400', icon: <Activity className="w-5 h-5" />, bg: 'bg-blue-500/10 border-blue-500/20' },
           { label: 'Active Assets', value: `${activeAssets.length} / ${assets.length}`, sub: 'Field deployed', color: 'text-[#00d9ff]', icon: <Bot className="w-5 h-5" />, bg: 'bg-cyan-500/10 border-cyan-500/20' },
@@ -297,7 +299,7 @@ export const HomePage: React.FC = () => {
           </div>
           <span className="text-xs font-mono font-bold text-white/30 tracking-widest uppercase">Nirnay v1.0</span>
         </div>
-        <span className="text-[10px] font-mono text-white/20">AI Emergency Command & Decision System · Visakhapatnam</span>
+        <span className="text-[10px] font-mono text-white/20">AI Emergency Command & Decision System · {district.name}</span>
       </div>
     </div>
   );

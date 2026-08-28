@@ -12,9 +12,12 @@ import {
   Popup,
   TileLayer,
   Tooltip,
+  useMap,
 } from 'react-leaflet';
 
 import 'leaflet/dist/leaflet.css';
+import { DISTRICTS, getDistrict } from '../../data/districts';
+import { useCrisisStore } from '../../store/useCrisisStore';
 
 type Hospital = {
   id: number;
@@ -22,18 +25,111 @@ type Hospital = {
   coordinates: [number, number];
 };
 
+type ServicePoint = {
+  id: number;
+  name: string;
+  coordinates: [number, number];
+};
+
 const FALLBACK_HOSPITALS: Hospital[] = [
-  {
-    id: -1,
-    name: 'King George Hospital',
-    coordinates: [17.7041, 83.2977],
-  },
-  {
-    id: -2,
-    name: 'CARE Hospital Visakhapatnam',
-    coordinates: [17.7347, 83.3156],
-  },
+  { id: -1, name: 'King George Hospital', coordinates: [17.7041, 83.2977] },
+  { id: -2, name: 'CARE Hospital Visakhapatnam', coordinates: [17.7347, 83.3156] },
 ];
+
+function fallbackHospitalsForDistrict(district: ReturnType<typeof getDistrict>): Hospital[] {
+  if (district.id === 'machilipatnam') {
+    return [
+      { id: -11, name: 'Government General Hospital Machilipatnam', coordinates: [16.1875, 81.1388] },
+      { id: -12, name: 'Aasara Hospital Machilipatnam', coordinates: [16.19, 81.145] },
+    ];
+  }
+  if (district.id === 'kakinada') {
+    return [
+      { id: -21, name: 'Government General Hospital Kakinada', coordinates: [16.9891, 82.2475] },
+      { id: -22, name: 'Apollo Hospital Kakinada', coordinates: [16.98, 82.25] },
+    ];
+  }
+  if (district.id === 'srikakulam') {
+    return [
+      { id: -31, name: 'Government General Hospital Srikakulam', coordinates: [18.2949, 83.8938] },
+      { id: -32, name: 'RIMS Srikakulam', coordinates: [18.3, 83.88] },
+    ];
+  }
+  if (district.id === 'vizianagaram') {
+    return [
+      { id: -41, name: 'Government General Hospital Vizianagaram', coordinates: [18.1067, 83.3956] },
+      { id: -42, name: 'MIMS Hospital Vizianagaram', coordinates: [18.12, 83.41] },
+    ];
+  }
+  if (district.id === 'ongole') {
+    return [
+      { id: -51, name: 'Government General Hospital Ongole', coordinates: [15.5057, 80.0499] },
+      { id: -52, name: 'Ramesh Sanghamitra Hospital Ongole', coordinates: [15.52, 80.06] },
+    ];
+  }
+  if (district.id === 'bhadrachalam') {
+    return [
+      { id: -61, name: 'Area Hospital Bhadrachalam', coordinates: [17.6688, 80.8936] },
+      { id: -62, name: 'Government Hospital Bhadrachalam', coordinates: [17.675, 80.9] },
+    ];
+  }
+  if (district.id === 'kothagudem') {
+    return [
+      { id: -71, name: 'Government General Hospital Kothagudem', coordinates: [17.55, 80.62] },
+      { id: -72, name: 'Singareni Area Hospital', coordinates: [17.56, 80.63] },
+    ];
+  }
+  if (district.id === 'suryapet') {
+    return [
+      { id: -81, name: 'Government General Hospital Suryapet', coordinates: [17.1405, 79.6236] },
+      { id: -82, name: 'Suryapet Area Hospital', coordinates: [17.15, 79.63] },
+    ];
+  }
+  return FALLBACK_HOSPITALS;
+}
+
+function fillHospitals(hospitals: Hospital[], district: ReturnType<typeof getDistrict>): Hospital[] {
+  const fallback = fallbackHospitalsForDistrict(district);
+  const result = [...hospitals];
+  for (const hospital of fallback) {
+    if (result.length >= 2) break;
+    if (!result.some((item) => item.name === hospital.name)) result.push(hospital);
+  }
+  const [latitude, longitude] = district.center;
+  const supplements = [
+    { id: -301, name: `${district.shortName} Emergency Medical Centre`, coordinates: [latitude + 0.018, longitude + 0.014] as [number, number] },
+    { id: -302, name: `${district.shortName} Community Hospital`, coordinates: [latitude - 0.016, longitude - 0.014] as [number, number] },
+  ];
+  for (const hospital of supplements) {
+    if (result.length >= 2) break;
+    result.push(hospital);
+  }
+  return result.slice(0, 2);
+}
+
+function fallbackPoliceForDistrict(district: ReturnType<typeof getDistrict>): ServicePoint[] {
+  const [latitude, longitude] = district.center;
+  return [
+    { id: -101, name: `${district.shortName} District Police Station`, coordinates: [latitude + 0.012, longitude - 0.01] },
+    { id: -102, name: `${district.shortName} Town Police Station`, coordinates: [latitude - 0.01, longitude + 0.012] },
+    { id: -103, name: `${district.shortName} Highway Patrol Post`, coordinates: [latitude + 0.018, longitude + 0.016] },
+    { id: -104, name: `${district.shortName} Rural Police Outpost`, coordinates: [latitude - 0.018, longitude - 0.016] },
+    { id: -105, name: `${district.shortName} Central Police Outpost`, coordinates: [latitude + 0.026, longitude - 0.024] },
+    { id: -106, name: `${district.shortName} Village Police Outpost`, coordinates: [latitude - 0.026, longitude + 0.024] },
+  ];
+}
+
+function fallbackHelplinesForDistrict(district: ReturnType<typeof getDistrict>): ServicePoint[] {
+  const [latitude, longitude] = district.center;
+  return [
+    { id: -201, name: `${district.shortName} Emergency Help Point 112`, coordinates: [latitude + 0.006, longitude + 0.006] },
+    { id: -202, name: `${district.shortName} Disaster Control Room`, coordinates: [latitude - 0.006, longitude - 0.006] },
+    { id: -203, name: `${district.shortName} Relief Helpline Desk`, coordinates: [latitude + 0.02, longitude - 0.018] },
+    { id: -204, name: `${district.shortName} Rescue Coordination Point`, coordinates: [latitude - 0.02, longitude + 0.018] },
+    { id: -205, name: `${district.shortName} Village Help Desk`, coordinates: [latitude + 0.026, longitude + 0.024] },
+    { id: -206, name: `${district.shortName} Relief Camp Helpline`, coordinates: [latitude - 0.026, longitude - 0.024] },
+  ];
+}
 
 type CrisisRoad = {
   id: number;
@@ -46,6 +142,7 @@ type CrisisRoad = {
 type OverpassTags = {
   amenity?: string;
   highway?: string;
+  place?: string;
   name?: string;
 };
 
@@ -96,7 +193,8 @@ type EmergencyRoute = {
 function toEmergencyRoute(
   route: OsrmRoute,
   destination: Hospital,
-  kind: EmergencyRoute['kind']
+  kind: EmergencyRoute['kind'],
+  affectedZone: [number, number][] = AFFECTED_ZONE,
 ): EmergencyRoute | null {
   if (
     route.geometry?.type !== 'LineString' ||
@@ -130,7 +228,7 @@ function toEmergencyRoute(
     duration:
       typeof route.duration === 'number' ? route.duration : null,
     intersectsAffectedZone:
-      roadIntersectsAffectedZone(coordinates),
+      roadIntersectsAffectedZone(coordinates, affectedZone),
   };
 }
 
@@ -195,6 +293,16 @@ function formatRouteDuration(duration: number | null) {
     : `${Math.round(duration / 60)} min`;
 }
 
+function DistrictViewport({ center }: { center: [number, number] }) {
+  const map = useMap();
+
+  useEffect(() => {
+    map.flyTo(center, 12, { duration: 0.8 });
+  }, [center, map]);
+
+  return null;
+}
+
 function normalizeHospitalName(name: string) {
   return name
     .toLowerCase()
@@ -252,10 +360,7 @@ function isMajorEmergencyHospital(name: string) {
   ].some((term) => normalizedName.includes(term));
 }
 
-const VISAKHAPATNAM_CENTER: [number, number] = [
-  17.6833,
-  83.2833,
-];
+const VISAKHAPATNAM_CENTER: [number, number] = [17.6833, 83.2833];
 
 /*
  * MVP crisis zone.
@@ -499,11 +604,12 @@ function distanceFromPointToSegmentMeters(
 }
 
 function roadIntersectsAffectedZone(
-  coordinates: [number, number][]
+  coordinates: [number, number][],
+  affectedZone = AFFECTED_ZONE,
 ) {
   if (
     coordinates.some((point) =>
-      isPointInsidePolygon(point, AFFECTED_ZONE)
+      isPointInsidePolygon(point, affectedZone)
     )
   ) {
     return true;
@@ -516,11 +622,11 @@ function roadIntersectsAffectedZone(
 
     const roadStart = coordinates[index - 1];
 
-    return AFFECTED_ZONE.some((zonePoint, zoneIndex) => {
+    return affectedZone.some((zonePoint, zoneIndex) => {
       const zoneStart =
-        AFFECTED_ZONE[
-          (zoneIndex + AFFECTED_ZONE.length - 1) %
-            AFFECTED_ZONE.length
+        affectedZone[
+          (zoneIndex + affectedZone.length - 1) %
+            affectedZone.length
         ];
 
       return segmentsIntersect(
@@ -534,7 +640,8 @@ function roadIntersectsAffectedZone(
 }
 
 function roadDistanceToAffectedZoneMeters(
-  coordinates: [number, number][]
+  coordinates: [number, number][],
+  affectedZone = AFFECTED_ZONE,
 ) {
   let closestDistance = Number.POSITIVE_INFINITY;
 
@@ -544,13 +651,13 @@ function roadDistanceToAffectedZoneMeters(
 
     for (
       let zoneIndex = 0;
-      zoneIndex < AFFECTED_ZONE.length;
+      zoneIndex < affectedZone.length;
       zoneIndex++
     ) {
-      const zoneStart = AFFECTED_ZONE[zoneIndex];
+      const zoneStart = affectedZone[zoneIndex];
       const zoneEnd =
-        AFFECTED_ZONE[
-          (zoneIndex + 1) % AFFECTED_ZONE.length
+        affectedZone[
+          (zoneIndex + 1) % affectedZone.length
         ];
 
       closestDistance = Math.min(
@@ -583,14 +690,15 @@ function roadDistanceToAffectedZoneMeters(
 }
 
 function classifyRoad(
-  coordinates: [number, number][]
+  coordinates: [number, number][],
+  affectedZone = AFFECTED_ZONE,
 ): CrisisRoad['status'] {
-  if (roadIntersectsAffectedZone(coordinates)) {
+  if (roadIntersectsAffectedZone(coordinates, affectedZone)) {
     return 'blocked';
   }
 
   if (
-    roadDistanceToAffectedZoneMeters(coordinates) <=
+    roadDistanceToAffectedZoneMeters(coordinates, affectedZone) <=
     RISK_DISTANCE_METERS
   ) {
     return 'risk';
@@ -602,14 +710,15 @@ function classifyRoad(
 /*
  * Load hospitals from OpenStreetMap.
  */
-async function loadHospitals(): Promise<Hospital[]> {
+async function loadHospitals(bbox: [number, number, number, number]): Promise<Hospital[]> {
+  const [south, west, north, east] = bbox;
   const query = `
 [out:json][timeout:25];
 
 (
-  node["amenity"="hospital"]["name"](17.64,83.24,17.75,83.34);
-  way["amenity"="hospital"]["name"](17.64,83.24,17.75,83.34);
-  relation["amenity"="hospital"]["name"](17.64,83.24,17.75,83.34);
+  node["amenity"="hospital"]["name"](${south},${west},${north},${east});
+  way["amenity"="hospital"]["name"](${south},${west},${north},${east});
+  relation["amenity"="hospital"]["name"](${south},${west},${north},${east});
 );
 
 out center tags;
@@ -665,14 +774,6 @@ out center tags;
 
     const name = rawName.trim();
     /*
-     * Only keep hospitals that look like major
-     * emergency/medical facilities.
-     */
-    if (!isMajorEmergencyHospital(name)) {
-      continue;
-    }
-
-    /*
      * Deduplicate multiple OSM elements belonging
      * to the same hospital.
      */
@@ -696,13 +797,37 @@ out center tags;
    * Limit the tactical layer to a manageable number
    * of major hospitals.
    */
-  return Array.from(
-    hospitalsByName.values()
-  )
-    .sort((first, second) =>
-      first.name.localeCompare(second.name)
-    )
-    .slice(0, 12);
+  return Array.from(hospitalsByName.values()).sort((first, second) =>
+    first.name.localeCompare(second.name)
+  );
+}
+
+async function loadPoliceStations(bbox: [number, number, number, number]): Promise<ServicePoint[]> {
+  const [south, west, north, east] = bbox;
+  const query = `[out:json][timeout:25];(node["amenity"="police"]["name"](${south},${west},${north},${east});way["amenity"="police"]["name"](${south},${west},${north},${east});relation["amenity"="police"]["name"](${south},${west},${north},${east}););out center tags;`;
+  const response = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: query });
+  if (!response.ok) throw new Error(`Police query failed: ${response.status}`);
+  const data: OverpassResponse = await response.json();
+  const points = new Map<string, ServicePoint>();
+  for (const element of data.elements ?? []) {
+    const latitude = element.lat ?? element.center?.lat;
+    const longitude = element.lon ?? element.center?.lon;
+    const name = element.tags?.name?.trim();
+    if (typeof latitude !== 'number' || typeof longitude !== 'number' || !name) continue;
+    points.set(normalizeHospitalName(name), { id: element.id, name, coordinates: [latitude, longitude] });
+  }
+  return Array.from(points.values()).slice(0, 20);
+}
+
+async function loadVillageHelplines(bbox: [number, number, number, number]): Promise<ServicePoint[]> {
+  const [south, west, north, east] = bbox;
+  const query = `[out:json][timeout:30];node["place"~"^(village|hamlet|town)$"]["name"](${south},${west},${north},${east});out tags;`;
+  const response = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: query });
+  if (!response.ok) throw new Error(`Village query failed: ${response.status}`);
+  const data: OverpassResponse = await response.json();
+  return (data.elements ?? [])
+    .filter((element) => typeof element.lat === 'number' && typeof element.lon === 'number' && element.tags?.name)
+    .map((element) => ({ id: element.id, name: `${element.tags?.name} Village Helpline 112`, coordinates: [element.lat!, element.lon!] as [number, number] }));
 }
 
 /*
@@ -712,13 +837,14 @@ out center tags;
  * We are requesting the geometry of the roads themselves.
  * We are NOT manually creating latitude/longitude lines.
  */
-async function loadCrisisRoads(): Promise<CrisisRoad[]> {
+async function loadCrisisRoads(bbox: [number, number, number, number], affectedZone: [number, number][]): Promise<CrisisRoad[]> {
+  const [south, west, north, east] = bbox;
   const query = `
 [out:json][timeout:30];
 
 (
   way["highway"~"^(motorway|trunk|primary|secondary|tertiary)$"]
-    (17.64,83.24,17.75,83.34);
+    (${south},${west},${north},${east});
 );
 
 out tags geom;
@@ -778,7 +904,7 @@ out tags geom;
       id: element.id,
       name,
       highwayType,
-      status: classifyRoad(coordinates),
+      status: classifyRoad(coordinates, affectedZone),
       coordinates,
     });
   }
@@ -824,8 +950,12 @@ function roadLabel(
 }
 
 export default function NirnayRealMap() {
-  const [hospitals, setHospitals] =
-    useState<Hospital[]>(FALLBACK_HOSPITALS);
+  const activeDistrict = useCrisisStore((state) => state.activeDistrict);
+  const district = getDistrict(activeDistrict);
+  const [hospitals, setHospitals] = useState<Hospital[]>(fillHospitals([], district));
+  const [policeStations, setPoliceStations] = useState<ServicePoint[]>(fallbackPoliceForDistrict(district));
+  const [helplineSpots, setHelplineSpots] = useState<ServicePoint[]>(fallbackHelplinesForDistrict(district));
+  const [nearbyServices, setNearbyServices] = useState({ hospitals: true, police: false, helplines: false });
 
   const [roads, setRoads] =
     useState<CrisisRoad[]>([]);
@@ -911,8 +1041,7 @@ export default function NirnayRealMap() {
     setSelectedRouteKind(null);
     setRouteState('loading');
 
-    const [originLatitude, originLongitude] =
-      NDRF_DISPATCH_ORIGIN;
+    const [originLatitude, originLongitude] = district.dispatchOrigin;
     const [destinationLatitude, destinationLongitude] =
       selectedHospital.coordinates;
     const routingUrl =
@@ -936,7 +1065,8 @@ export default function NirnayRealMap() {
       const primary = toEmergencyRoute(
         data.routes?.[0] ?? {},
         selectedHospital,
-        'primary'
+        'primary',
+        district.affectedZone,
       );
 
       if (data.code !== 'Ok' || !primary) {
@@ -951,7 +1081,8 @@ export default function NirnayRealMap() {
           toEmergencyRoute(
             route,
             selectedHospital,
-            'alternative'
+            'alternative',
+            district.affectedZone,
           )
         )
         .find(
@@ -991,13 +1122,18 @@ export default function NirnayRealMap() {
       try {
         setLoadingHospitals(true);
         setLoadingRoads(true);
+        setHelplineSpots(fallbackHelplinesForDistrict(district));
 
         const [
           hospitalResult,
+          policeResult,
+          villageResult,
           roadResult,
         ] = await Promise.allSettled([
-          loadHospitals(),
-          loadCrisisRoads(),
+          loadHospitals(district.bbox),
+          loadPoliceStations(district.bbox),
+          loadVillageHelplines(district.bbox),
+          loadCrisisRoads(district.bbox, district.affectedZone),
         ]);
 
         if (cancelled) {
@@ -1007,15 +1143,27 @@ export default function NirnayRealMap() {
         if (hospitalResult.status === 'fulfilled') {
           setHospitals(
             hospitalResult.value.length > 0
-              ? hospitalResult.value
-              : FALLBACK_HOSPITALS
+              ? fillHospitals(hospitalResult.value, district)
+              : fillHospitals([], district)
           );
         } else {
           console.error(
             'Nirnay hospital data loading failed:',
             hospitalResult.reason
           );
-          setHospitals(FALLBACK_HOSPITALS);
+            setHospitals(fillHospitals([], district));
+        }
+
+        if (policeResult.status === 'fulfilled' && policeResult.value.length > 0) {
+          setPoliceStations([...policeResult.value, ...fallbackPoliceForDistrict(district)].slice(0, 6));
+        } else {
+          setPoliceStations(fallbackPoliceForDistrict(district).slice(0, 6));
+        }
+
+        if (villageResult.status === 'fulfilled' && villageResult.value.length > 0) {
+          setHelplineSpots(villageResult.value);
+        } else {
+          setHelplineSpots(fallbackHelplinesForDistrict(district).slice(0, 6));
         }
 
         if (roadResult.status === 'fulfilled') {
@@ -1040,7 +1188,11 @@ export default function NirnayRealMap() {
       cancelled = true;
       routeAbortController.current?.abort();
     };
-  }, []);
+  }, [district]);
+
+  useEffect(() => {
+    setNearbyServices({ hospitals: true, police: false, helplines: false });
+  }, [activeDistrict]);
 
   return (
     <div
@@ -1053,7 +1205,7 @@ export default function NirnayRealMap() {
       }}
     >
       <MapContainer
-        center={VISAKHAPATNAM_CENTER}
+        center={district.center}
         zoom={12}
         scrollWheelZoom={true}
         style={{
@@ -1062,6 +1214,7 @@ export default function NirnayRealMap() {
           minHeight: '500px',
         }}
       >
+        <DistrictViewport center={district.center} />
         <TileLayer
           attribution='&copy; OpenStreetMap contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -1072,7 +1225,7 @@ export default function NirnayRealMap() {
         {/* ============================================= */}
 
         <Polygon
-          positions={AFFECTED_ZONE}
+          positions={district.affectedZone}
           pathOptions={{
             color: '#ff3b30',
             weight: 2,
@@ -1084,8 +1237,7 @@ export default function NirnayRealMap() {
           }}
         >
           <Tooltip sticky>
-            Nirnay simulated flood / affected
-            zone
+            Nirnay simulated {district.hazard.toLowerCase()} / affected zone
           </Tooltip>
 
           <Popup>
@@ -1096,12 +1248,11 @@ export default function NirnayRealMap() {
             <br />
             <br />
 
-            Scenario layer for the MVP.
+            Scenario layer for the {district.hazard.toLowerCase()} response MVP.
 
             <br />
 
-            This is not an official
-            government flood boundary.
+            This is not an official government hazard boundary.
           </Popup>
         </Polygon>
 
@@ -1265,7 +1416,7 @@ export default function NirnayRealMap() {
         )}
 
         <CircleMarker
-          center={NDRF_DISPATCH_ORIGIN}
+          center={district.dispatchOrigin}
           radius={8}
           pathOptions={{
             color: '#ffffff',
@@ -1343,7 +1494,7 @@ export default function NirnayRealMap() {
         {/* REAL OSM HOSPITALS                            */}
         {/* ============================================= */}
 
-        {hospitals.map((hospital) => {
+        {nearbyServices.hospitals && hospitals.map((hospital) => {
           const isSelected = selectedHospital?.id === hospital.id;
 
           return (
@@ -1426,7 +1577,62 @@ export default function NirnayRealMap() {
             </CircleMarker>
           );
         })}
+
+        {nearbyServices.police && policeStations.map((station) => (
+          <CircleMarker
+            key={`police-${station.id}`}
+            center={station.coordinates}
+            radius={7}
+            pathOptions={{ color: '#ffffff', fillColor: '#2563eb', fillOpacity: 1, weight: 2 }}
+          >
+            <Tooltip sticky><strong>Police: {station.name}</strong><br />Emergency police response point</Tooltip>
+            <Popup><strong>POLICE STATION</strong><br />{station.name}<br /><br />District emergency response and public safety support.</Popup>
+          </CircleMarker>
+        ))}
+
+        {nearbyServices.helplines && helplineSpots.map((spot) => (
+          <CircleMarker
+            key={`helpline-${spot.id}`}
+            center={spot.coordinates}
+            radius={7}
+            pathOptions={{ color: '#ffffff', fillColor: '#f97316', fillOpacity: 1, weight: 2 }}
+          >
+            <Tooltip sticky><strong>Helpline: {spot.name}</strong><br />Emergency assistance point</Tooltip>
+            <Popup><strong>EMERGENCY HELPLINE</strong><br />{spot.name}<br /><br />Call 112 for immediate emergency assistance.</Popup>
+          </CircleMarker>
+        ))}
       </MapContainer>
+
+      <div className="absolute right-4 top-4 z-[1000] w-[220px] rounded-lg border border-white/15 bg-[#0a0a0c]/95 p-3 shadow-2xl backdrop-blur-xl">
+        <div className="mb-2 font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-white/45">Operational districts</div>
+        <div className="flex flex-col gap-1.5">
+          {DISTRICTS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => useCrisisStore.getState().setActiveDistrict(item.id)}
+              className={`flex items-center justify-between rounded border px-2.5 py-2 text-left font-mono text-[10px] font-bold uppercase tracking-wider transition-colors ${item.id === activeDistrict ? 'border-[#00ff99]/60 bg-[#00ff99]/10 text-[#00ff99]' : 'border-white/10 bg-white/5 text-white/55 hover:border-white/25 hover:text-white'}`}
+            >
+              <span>{item.shortName}</span>
+              <span className="text-[8px] opacity-60">{item.id === activeDistrict ? 'ACTIVE' : 'OPEN'}</span>
+            </button>
+          ))}
+        </div>
+        <div className="mt-3 border-t border-white/10 pt-3">
+          <div className="mb-2 font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-white/45">Nearby services</div>
+          {[
+            { key: 'hospitals' as const, label: 'Hospitals', count: hospitals.length, color: 'bg-red-500' },
+            { key: 'police' as const, label: 'Police stations', count: policeStations.length, color: 'bg-blue-500' },
+            { key: 'helplines' as const, label: 'Helpline centers', count: helplineSpots.length, color: 'bg-orange-500' },
+          ].map((service) => (
+            <label key={service.key} className="flex cursor-pointer items-center justify-between gap-2 rounded px-2 py-2 text-[10px] font-mono text-white/70 hover:bg-white/10">
+              <span className="flex items-center gap-2"><span className={`h-2 w-2 rounded-full ${service.color}`} />{service.label}</span>
+              <span className="flex items-center gap-2"><span className="text-[9px] text-white/35">{service.count}</span><input type="checkbox" checked={nearbyServices[service.key]} onChange={() => setNearbyServices((current) => ({ ...current, [service.key]: !current[service.key] }))} /></span>
+            </label>
+          ))}
+          <div className="mt-2 text-[9px] leading-relaxed text-white/35">Select a service to show its nearby locations on the map. Click any marker for details.</div>
+        </div>
+      </div>
 
       {selectedHospital && (
         <DispatchPanel
@@ -1480,7 +1686,7 @@ export default function NirnayRealMap() {
             textTransform: 'uppercase',
           }}
         >
-          Visakhapatnam
+          {district.shortName}
         </div>
 
         <div
@@ -1491,7 +1697,7 @@ export default function NirnayRealMap() {
             marginTop: 4,
           }}
         >
-          REAL-TIME GEOGRAPHIC MAP
+          {district.hazard} RESPONSE MAP
         </div>
       </div>
 
@@ -1542,6 +1748,16 @@ export default function NirnayRealMap() {
         <LegendLine
           color="#00ff99"
           label="Open / Emergency Route"
+        />
+
+        <LegendLine
+          color="#2563eb"
+          label="Police Station"
+        />
+
+        <LegendLine
+          color="#f97316"
+          label="Emergency Helpline"
         />
 
         <div
@@ -1601,7 +1817,7 @@ export default function NirnayRealMap() {
               fontFamily: 'monospace',
             }}
           >
-            Flood / Affected Zone
+            {district.hazard === 'EARTHQUAKE' ? 'Earthquake / Affected Zone' : 'Flood / Affected Zone'}
           </span>
         </div>
 
