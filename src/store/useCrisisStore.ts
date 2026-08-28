@@ -65,6 +65,7 @@ interface CrisisState {
 
   // Data collections
   roads: RoadSegment[];
+  baseRoads: RoadSegment[];
   facilities: Facility[];
   zones: OperationalZone[];
   assets: EmergencyAsset[];
@@ -113,6 +114,30 @@ interface CrisisState {
 
 let hydrationPromise: Promise<void> | null = null;
 
+function calculateRoadRiskScore(road: RoadSegment): number {
+  const floodRisk = Math.min(100, Math.round((road.waterLevelCm ?? 0) * 1.5));
+  const trafficRisk = { LIGHT: 10, MODERATE: 25, HEAVY: 45, STANDSTILL: 70 }[road.currentTraffic];
+  const reportRisk = Math.min(
+    100,
+    road.sources.citizenReports.count * 2 +
+      road.sources.sensors.count * 3 +
+      road.sources.satellite.count * 4,
+  );
+  const connectivityRisk = Math.min(100, road.connectedZones.length * 15);
+  const statusRisk = { SAFE: 0, RISKY: 15, CRITICAL: 30, BLOCKED: 40 }[road.status];
+
+  return Math.min(
+    100,
+    Math.round(
+      floodRisk * 0.35 +
+      trafficRisk * 0.2 +
+      reportRisk * 0.2 +
+      connectivityRisk * 0.1 +
+      statusRisk * 0.15,
+    ),
+  );
+}
+
 export const useCrisisStore = create<CrisisState>((set, get) => ({
   activeTab: 'home',
   activeDistrict: (localStorage.getItem('nirnay_district') as DistrictId | null) || DEFAULT_DISTRICT.id,
@@ -133,6 +158,7 @@ export const useCrisisStore = create<CrisisState>((set, get) => ({
   activeRouteId: 'route-b-alternate',
 
   roads: INITIAL_ROADS,
+  baseRoads: INITIAL_ROADS,
   facilities: INITIAL_FACILITIES,
   zones: INITIAL_ZONES,
   assets: INITIAL_ASSETS,
@@ -220,7 +246,7 @@ export const useCrisisStore = create<CrisisState>((set, get) => ({
       selectedRoad: road,
     });
 
-    const simulationResult = await simulateRoadClosure(road.id);
+    const simulationResult = await simulateRoadClosure(road.id, road);
     set({ simulationResult });
   },
 
@@ -301,7 +327,11 @@ export const useCrisisStore = create<CrisisState>((set, get) => ({
 
   updateRoadStatus: (roadId, status) => {
     set((state) => ({
-      roads: state.roads.map((r) => (r.id === roadId ? { ...r, status } : r)),
+      roads: state.roads.map((r) => {
+        if (r.id !== roadId) return r;
+        const updatedRoad = { ...r, status };
+        return { ...updatedRoad, riskScore: calculateRoadRiskScore(updatedRoad) };
+      }),
     }));
   },
 
@@ -340,15 +370,18 @@ export const useCrisisStore = create<CrisisState>((set, get) => ({
   setTimelineIndex: (index) => {
     const events = get().timelineEvents;
     const clamped = Math.max(0, Math.min(events.length - 1, index));
-    const currentEvt = events[clamped];
+    const replayedRoads = get().baseRoads.map((road) => ({ ...road }));
 
-    if (currentEvt.roadStateChanges) {
-      currentEvt.roadStateChanges.forEach((change) => {
-        get().updateRoadStatus(change.roadId, change.newStatus);
+    events.slice(0, clamped + 1).forEach((event) => {
+      event.roadStateChanges?.forEach((change) => {
+        const road = replayedRoads.find((item) => item.id === change.roadId);
+        if (!road) return;
+        road.status = change.newStatus;
+        road.riskScore = calculateRoadRiskScore(road);
       });
-    }
+    });
 
-    set({ currentTimelineIndex: clamped });
+    set({ currentTimelineIndex: clamped, roads: replayedRoads });
   },
 
   toggleTimelinePlayback: () => {
@@ -377,7 +410,7 @@ export const useCrisisStore = create<CrisisState>((set, get) => ({
       isClosureImpactViewOpen: false,
       isRoadDetailModalOpen: false,
       activeRouteId: 'route-b-alternate',
-      roads: INITIAL_ROADS,
+      roads: get().baseRoads,
     });
   },
 
@@ -391,6 +424,7 @@ export const useCrisisStore = create<CrisisState>((set, get) => ({
       ]).then(([graph, routes, timelineEvents, intelligenceFeed]) => {
         set({
           roads: graph.roads,
+          baseRoads: graph.roads,
           facilities: graph.facilities,
           zones: graph.zones,
           assets: graph.assets,

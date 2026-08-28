@@ -7,7 +7,7 @@ import {
   BROADWAY_SIMULATION_RESULT,
 } from './src/data/mockCrisisData';
 import { getCollection, getRecord, getRoadConfidence, hasSupabaseConfig, saveSimulation } from './src/server/supabase';
-import { EmergencyRoute, RoadSegment } from './src/types';
+import { EmergencyRoute, Facility, OperationalZone, RoadSegment } from './src/types';
 
 dotenv.config();
 
@@ -97,7 +97,39 @@ async function startServer() {
     const { id } = req.params;
     const road = await getRecord<RoadSegment>('roads', id);
     if (!road) return res.status(404).json({ error: 'Road not found', roadId: id });
-    const result = { ...BROADWAY_SIMULATION_RESULT, simulatedEntityId: id, simulatedEntityName: road.name };
+    const [zones, facilities, routes] = await Promise.all([
+      getCollection<OperationalZone>('zones'),
+      getCollection<Facility>('facilities'),
+      getCollection<EmergencyRoute>('routes'),
+    ]);
+    const connectedZones = zones.filter((zone) => road.connectedZones.includes(zone.id));
+    const peopleAffected = connectedZones.reduce((total, zone) => total + zone.population, 0) || Math.round(road.riskScore * 100);
+    const hospitalsIsolated = Math.max(
+      1,
+      Math.min(
+        3,
+        facilities.filter((facility) => facility.type === 'HOSPITAL' && facility.floodRisk !== 'LOW').length,
+      ),
+    );
+    const alternative = routes.find((route) => route.type === 'ALTERNATE') ?? routes[0];
+    const delayAddedMinutes = Math.max(5, Math.round(road.lengthKm * (1 + road.riskScore / 100)));
+    const result = {
+      ...BROADWAY_SIMULATION_RESULT,
+      simulatedEntityId: id,
+      simulatedEntityName: road.name,
+      peopleAffected,
+      hospitalsIsolated,
+      sheltersImpacted: Math.max(1, connectedZones.length),
+      emergencyRoutesChanged: Math.max(1, Math.min(5, connectedZones.length + 1)),
+      delayAddedMinutes,
+      recommendedAlternative: alternative
+        ? {
+            routeId: alternative.id,
+            routeName: alternative.name,
+            explanation: `Use ${alternative.name} while ${road.name} is closed to preserve emergency access.`,
+          }
+        : BROADWAY_SIMULATION_RESULT.recommendedAlternative,
+    };
     await saveSimulation(id, result);
     res.json(result);
   });
