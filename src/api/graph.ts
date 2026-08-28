@@ -12,7 +12,17 @@ export interface GraphData {
 export async function fetchGraphData(): Promise<GraphData> {
   try {
     const response = await fetch('/api/graph');
-    if (response.ok) return await response.json() as GraphData;
+    if (response.ok) {
+      const data = await response.json() as Partial<GraphData>;
+      if (
+        Array.isArray(data.roads) && data.roads.length > 0 &&
+        Array.isArray(data.facilities) && data.facilities.length > 0 &&
+        Array.isArray(data.zones) && data.zones.length > 0 &&
+        Array.isArray(data.assets) && data.assets.length > 0
+      ) {
+        return data as GraphData;
+      }
+    }
   } catch {
     // Keep the dashboard usable when the API is unavailable.
   }
