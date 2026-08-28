@@ -16,7 +16,7 @@ import {
 } from 'react-leaflet';
 
 import 'leaflet/dist/leaflet.css';
-import { DISTRICTS, getDistrict } from '../../data/districts';
+import { getDistrict } from '../../data/districts';
 import { useCrisisStore } from '../../store/useCrisisStore';
 
 type Hospital = {
@@ -1122,6 +1122,8 @@ export default function NirnayRealMap() {
       try {
         setLoadingHospitals(true);
         setLoadingRoads(true);
+        setHospitals(fillHospitals([], district));
+        setPoliceStations(fallbackPoliceForDistrict(district).slice(0, 6));
         setHelplineSpots(fallbackHelplinesForDistrict(district));
 
         const [
@@ -1604,21 +1606,7 @@ export default function NirnayRealMap() {
       </MapContainer>
 
       <div className="absolute right-4 top-4 z-[1000] w-[220px] rounded-lg border border-white/15 bg-[#0a0a0c]/95 p-3 shadow-2xl backdrop-blur-xl">
-        <div className="mb-2 font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-white/45">Operational districts</div>
-        <div className="flex flex-col gap-1.5">
-          {DISTRICTS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => useCrisisStore.getState().setActiveDistrict(item.id)}
-              className={`flex items-center justify-between rounded border px-2.5 py-2 text-left font-mono text-[10px] font-bold uppercase tracking-wider transition-colors ${item.id === activeDistrict ? 'border-[#00ff99]/60 bg-[#00ff99]/10 text-[#00ff99]' : 'border-white/10 bg-white/5 text-white/55 hover:border-white/25 hover:text-white'}`}
-            >
-              <span>{item.shortName}</span>
-              <span className="text-[8px] opacity-60">{item.id === activeDistrict ? 'ACTIVE' : 'OPEN'}</span>
-            </button>
-          ))}
-        </div>
-        <div className="mt-3 border-t border-white/10 pt-3">
+        <div>
           <div className="mb-2 font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-white/45">Nearby services</div>
           {[
             { key: 'hospitals' as const, label: 'Hospitals', count: hospitals.length, color: 'bg-red-500' },

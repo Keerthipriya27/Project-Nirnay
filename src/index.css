@@ -122,6 +122,33 @@
   animation: pulse-subtle 2s ease-in-out infinite;
 }
 
+@keyframes logo-orbit {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes logo-orbit-reverse {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+
+@keyframes splash-progress {
+  from { transform: translateX(-300%); }
+  to { transform: translateX(400%); }
+}
+
+.animate-logo-orbit {
+  animation: logo-orbit 5s linear infinite;
+}
+
+.animate-logo-orbit-reverse {
+  animation: logo-orbit-reverse 7s linear infinite;
+}
+
+.animate-splash-progress {
+  animation: splash-progress 1.5s ease-in-out infinite;
+}
+
 @keyframes dash-flow {
   to {
     stroke-dashoffset: -40;

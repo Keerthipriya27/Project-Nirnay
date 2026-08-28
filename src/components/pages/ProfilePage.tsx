@@ -1,5 +1,4 @@
-import React, { useEffect, useState } from 'react';
-import { useAuthStore } from '../../auth/useAuthStore';
+import React, { useState } from 'react';
 import {
   Shield,
   User,
@@ -7,14 +6,12 @@ import {
   Activity,
   CheckCircle2,
   Clock,
-  Lock,
   Bell,
   BrainCircuit,
   Zap,
-  ChevronRight,
   Edit3,
-  LogOut,
-  Download,
+  ImagePlus,
+  Trash2,
 } from 'lucide-react';
 
 const MISSIONS = [
@@ -26,25 +23,35 @@ const MISSIONS = [
 ];
 
 export const ProfilePage: React.FC = () => {
-  const { user, logout } = useAuthStore();
   const [notifyOps, setNotifyOps]       = useState(true);
   const [notifyAI, setNotifyAI]         = useState(true);
   const [editMode, setEditMode]         = useState(false);
-  const [name, setName]                 = useState(user?.name || 'Operator');
+  const [name, setName]                 = useState(() => localStorage.getItem('nirnay_profile_name') || 'Emergency Operator');
+  const [avatarUrl, setAvatarUrl]       = useState(() => localStorage.getItem('nirnay_profile_avatar') || '');
   const [role, setRole]                 = useState('Crisis Response Commander');
   const [editedName, setEditedName]     = useState(name);
   const [editedRole, setEditedRole]     = useState(role);
 
-  useEffect(() => {
-    if (!user) return;
-    setName(user.name);
-    setEditedName(user.name);
-  }, [user]);
-
   function saveEdit() {
     setName(editedName);
+    localStorage.setItem('nirnay_profile_name', editedName);
     setRole(editedRole);
     setEditMode(false);
+  }
+
+  function handleProfilePictureChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file || !file.type.startsWith('image/') || file.size > 2 * 1024 * 1024) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setAvatarUrl(reader.result);
+        localStorage.setItem('nirnay_profile_avatar', reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+    event.target.value = '';
   }
 
   return (
@@ -62,8 +69,15 @@ export const ProfilePage: React.FC = () => {
           <div className="relative p-6 md:p-8 flex flex-col sm:flex-row items-center sm:items-start gap-5">
             {/* Avatar */}
             <div className="relative shrink-0">
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#00d9ff] to-blue-700 flex items-center justify-center shadow-[0_0_30px_rgba(0,217,255,0.3)]">
-                <User className="w-9 h-9 text-white" />
+              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#00d9ff] to-blue-700 flex items-center justify-center overflow-hidden shadow-[0_0_30px_rgba(0,217,255,0.3)]">
+                {avatarUrl ? <img src={avatarUrl} alt={`${name} profile`} className="h-full w-full rounded-2xl object-cover" /> : <User className="w-9 h-9 text-white" />}
+              </div>
+              <div className="absolute -bottom-3 left-1/2 flex -translate-x-1/2 gap-1">
+                <label className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border border-[#050506] bg-[#00d9ff] text-[#061014] shadow-lg" title="Upload profile picture">
+                  <ImagePlus className="h-3.5 w-3.5" />
+                  <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleProfilePictureChange} className="sr-only" />
+                </label>
+                {avatarUrl && <button type="button" onClick={() => { setAvatarUrl(''); localStorage.removeItem('nirnay_profile_avatar'); }} className="flex h-7 w-7 items-center justify-center rounded-full border border-[#050506] bg-red-500 text-white shadow-lg" title="Remove profile picture"><Trash2 className="h-3.5 w-3.5" /></button>}
               </div>
               <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-[#00ff99] rounded-full border-2 border-[#050506] flex items-center justify-center">
                 <span className="text-[6px] font-black text-black">●</span>
@@ -93,19 +107,19 @@ export const ProfilePage: React.FC = () => {
                 <>
                   <h2 className="text-xl md:text-2xl font-mono font-black text-white">{name}</h2>
                   <p className="text-sm text-white/50 mt-0.5">{role}</p>
-                  <p className="text-xs text-white/35 mt-1 font-mono">{user?.email} · {user?.provider === 'google' ? 'Google account' : 'Operator account'}</p>
+                  <p className="text-xs text-white/35 mt-1 font-mono">Local command profile · Ready for operations</p>
                 </>
               )}
 
               <div className="flex flex-wrap justify-center sm:justify-start gap-2 mt-3">
                 <span className="text-[9px] font-mono font-bold px-2 py-1 rounded bg-red-500/15 border border-red-500/30 text-red-400 uppercase tracking-widest">
-                  NIRNAY NODE: {user?.nodeId || 'UNASSIGNED'}
+                  NIRNAY NODE: ALPHA-09
                 </span>
                 <span className="text-[9px] font-mono font-bold px-2 py-1 rounded bg-[#00ff99]/10 border border-[#00ff99]/30 text-[#00ff99] uppercase tracking-widest">
                   ● ONLINE
                 </span>
                 <span className="text-[9px] font-mono font-bold px-2 py-1 rounded bg-blue-500/15 border border-blue-500/30 text-blue-400 uppercase tracking-widest">
-                  CLEARANCE L{user?.clearanceLevel ?? 0}
+                  CLEARANCE L5
                 </span>
               </div>
             </div>
@@ -194,39 +208,6 @@ export const ProfilePage: React.FC = () => {
             </div>
           ))}
         </div>
-
-        {/* ══════════════════════════════
-            SECURITY
-        ══════════════════════════════ */}
-        <div className="bg-[#0a0a0c]/80 rounded-xl border border-white/10 p-5 flex flex-col gap-2">
-          <h3 className="font-mono text-xs font-bold text-white/40 uppercase tracking-widest mb-2 flex items-center gap-2">
-            <Lock className="w-3.5 h-3.5" /> Security & Access
-          </h3>
-          {[
-            { label: 'Change Access Code', icon: <Lock className="w-4 h-4" /> },
-            { label: 'Export Mission Report', icon: <Download className="w-4 h-4" /> },
-            { label: 'View Audit Log', icon: <Activity className="w-4 h-4" /> },
-          ].map(item => (
-            <button
-              key={item.label}
-              className="flex items-center justify-between p-3 bg-white/5 hover:bg-white/10 rounded-lg border border-white/5 hover:border-white/10 transition-all cursor-pointer group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="text-white/40 group-hover:text-white/70 transition-colors">{item.icon}</div>
-                <span className="text-xs font-mono font-bold text-white/70 group-hover:text-white transition-colors">{item.label}</span>
-              </div>
-              <ChevronRight className="w-3.5 h-3.5 text-white/20 group-hover:text-white/60 group-hover:translate-x-0.5 transition-all" />
-            </button>
-          ))}
-        </div>
-
-        {/* ══════════════════════════════
-            SIGN OUT
-        ══════════════════════════════ */}
-        <button onClick={logout} className="w-full py-3 rounded-xl border border-red-500/20 bg-red-600/10 hover:bg-red-600/20 text-red-400 font-mono font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-[0.98]">
-          <LogOut className="w-4 h-4" />
-          Deactivate Session
-        </button>
 
       </div>
     </div>
