@@ -110,24 +110,24 @@ function fillHospitals(hospitals: Hospital[], district: ReturnType<typeof getDis
 function fallbackPoliceForDistrict(district: ReturnType<typeof getDistrict>): ServicePoint[] {
   const [latitude, longitude] = district.dispatchOrigin;
   return [
-    { id: -101, name: `${district.shortName} District Police Station`, coordinates: [latitude + 0.008, longitude - 0.004] },
-    { id: -102, name: `${district.shortName} Town Police Station`, coordinates: [latitude - 0.006, longitude - 0.006] },
-    { id: -103, name: `${district.shortName} Highway Patrol Post`, coordinates: [latitude + 0.014, longitude - 0.008] },
-    { id: -104, name: `${district.shortName} Rural Police Outpost`, coordinates: [latitude - 0.012, longitude - 0.004] },
-    { id: -105, name: `${district.shortName} Central Police Outpost`, coordinates: [latitude + 0.018, longitude - 0.012] },
-    { id: -106, name: `${district.shortName} Village Police Outpost`, coordinates: [latitude - 0.018, longitude - 0.008] },
+    { id: -101, name: `${district.shortName} District Police Station`, coordinates: [latitude + 0.024, longitude - 0.018] },
+    { id: -102, name: `${district.shortName} Town Police Station`, coordinates: [latitude + 0.012, longitude + 0.004] },
+    { id: -103, name: `${district.shortName} Highway Patrol Post`, coordinates: [latitude - 0.002, longitude - 0.022] },
+    { id: -104, name: `${district.shortName} Rural Police Outpost`, coordinates: [latitude - 0.020, longitude - 0.006] },
+    { id: -105, name: `${district.shortName} Central Police Outpost`, coordinates: [latitude - 0.012, longitude + 0.014] },
+    { id: -106, name: `${district.shortName} Village Police Outpost`, coordinates: [latitude + 0.006, longitude - 0.032] },
   ];
 }
 
 function fallbackHelplinesForDistrict(district: ReturnType<typeof getDistrict>): ServicePoint[] {
   const [latitude, longitude] = district.dispatchOrigin;
   return [
-    { id: -201, name: `${district.shortName} Emergency Help Point 112`, coordinates: [latitude + 0.006, longitude - 0.003] },
-    { id: -202, name: `${district.shortName} Disaster Control Room`, coordinates: [latitude - 0.006, longitude - 0.005] },
-    { id: -203, name: `${district.shortName} Relief Helpline Desk`, coordinates: [latitude + 0.012, longitude - 0.009] },
-    { id: -204, name: `${district.shortName} Rescue Coordination Point`, coordinates: [latitude - 0.012, longitude - 0.008] },
-    { id: -205, name: `${district.shortName} Village Help Desk`, coordinates: [latitude + 0.018, longitude - 0.012] },
-    { id: -206, name: `${district.shortName} Relief Camp Helpline`, coordinates: [latitude - 0.018, longitude - 0.011] },
+    { id: -201, name: `${district.shortName} Emergency Help Point 112`, coordinates: [latitude + 0.018, longitude + 0.012] },
+    { id: -202, name: `${district.shortName} Disaster Control Room`, coordinates: [latitude + 0.002, longitude - 0.032] },
+    { id: -203, name: `${district.shortName} Relief Helpline Desk`, coordinates: [latitude - 0.016, longitude + 0.008] },
+    { id: -204, name: `${district.shortName} Rescue Coordination Point`, coordinates: [latitude + 0.028, longitude - 0.006] },
+    { id: -205, name: `${district.shortName} Village Help Desk`, coordinates: [latitude - 0.028, longitude - 0.018] },
+    { id: -206, name: `${district.shortName} Relief Camp Helpline`, coordinates: [latitude - 0.004, longitude + 0.024] },
   ];
 }
 
@@ -138,6 +138,33 @@ type CrisisRoad = {
   status: 'blocked' | 'risk' | 'open';
   coordinates: [number, number][];
 };
+
+function distributeServicesAcrossRoads(
+  roads: CrisisRoad[],
+  district: ReturnType<typeof getDistrict>,
+  prefix: string,
+  names: string[],
+): ServicePoint[] {
+  const roadPoints = roads
+    .flatMap((road) => road.coordinates)
+    .filter((point) => isPointInsidePolygon(point, district.affectedZone));
+
+  if (roadPoints.length === 0) return [];
+
+  const sortedPoints = roadPoints.sort(
+    ([firstLatitude, firstLongitude], [secondLatitude, secondLongitude]) =>
+      firstLatitude - secondLatitude || firstLongitude - secondLongitude,
+  );
+
+  return names.map((name, index) => {
+    const pointIndex = Math.round((index * (sortedPoints.length - 1)) / (names.length - 1));
+    return {
+      id: -1 * (prefix === 'police' ? 1000 : 2000) - index - 1,
+      name: `${district.shortName} ${name}`,
+      coordinates: sortedPoints[pointIndex],
+    };
+  });
+}
 
 type OverpassTags = {
   amenity?: string;
@@ -1156,20 +1183,24 @@ export default function NirnayRealMap() {
             setHospitals(fillHospitals([], district));
         }
 
-        if (policeResult.status === 'fulfilled' && policeResult.value.length > 0) {
-          setPoliceStations([...policeResult.value, ...fallbackPoliceForDistrict(district)].slice(0, 6));
-        } else {
-          setPoliceStations(fallbackPoliceForDistrict(district).slice(0, 6));
-        }
-
-        if (villageResult.status === 'fulfilled' && villageResult.value.length > 0) {
-          setHelplineSpots(villageResult.value);
-        } else {
-          setHelplineSpots(fallbackHelplinesForDistrict(district).slice(0, 6));
-        }
-
         if (roadResult.status === 'fulfilled') {
           setRoads(roadResult.value);
+
+          const distributedPolice = distributeServicesAcrossRoads(
+            roadResult.value,
+            district,
+            'police',
+            ['District Police Station', 'Town Police Station', 'Highway Patrol Post', 'Rural Police Outpost', 'Central Police Outpost', 'Village Police Outpost'],
+          );
+          const distributedHelplines = distributeServicesAcrossRoads(
+            roadResult.value,
+            district,
+            'helpline',
+            ['Emergency Help Point 112', 'Disaster Control Room', 'Relief Helpline Desk', 'Rescue Coordination Point', 'Village Help Desk', 'Relief Camp Helpline'],
+          );
+
+          if (distributedPolice.length > 0) setPoliceStations(distributedPolice);
+          if (distributedHelplines.length > 0) setHelplineSpots(distributedHelplines);
         } else {
           console.error(
             'Nirnay road data loading failed:',
