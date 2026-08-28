@@ -108,26 +108,26 @@ function fillHospitals(hospitals: Hospital[], district: ReturnType<typeof getDis
 }
 
 function fallbackPoliceForDistrict(district: ReturnType<typeof getDistrict>): ServicePoint[] {
-  const [latitude, longitude] = district.center;
+  const [latitude, longitude] = district.dispatchOrigin;
   return [
-    { id: -101, name: `${district.shortName} District Police Station`, coordinates: [latitude + 0.012, longitude - 0.01] },
-    { id: -102, name: `${district.shortName} Town Police Station`, coordinates: [latitude - 0.01, longitude + 0.012] },
-    { id: -103, name: `${district.shortName} Highway Patrol Post`, coordinates: [latitude + 0.018, longitude + 0.016] },
-    { id: -104, name: `${district.shortName} Rural Police Outpost`, coordinates: [latitude - 0.018, longitude - 0.016] },
-    { id: -105, name: `${district.shortName} Central Police Outpost`, coordinates: [latitude + 0.026, longitude - 0.024] },
-    { id: -106, name: `${district.shortName} Village Police Outpost`, coordinates: [latitude - 0.026, longitude + 0.024] },
+    { id: -101, name: `${district.shortName} District Police Station`, coordinates: [latitude + 0.008, longitude - 0.004] },
+    { id: -102, name: `${district.shortName} Town Police Station`, coordinates: [latitude - 0.006, longitude - 0.006] },
+    { id: -103, name: `${district.shortName} Highway Patrol Post`, coordinates: [latitude + 0.014, longitude - 0.008] },
+    { id: -104, name: `${district.shortName} Rural Police Outpost`, coordinates: [latitude - 0.012, longitude - 0.004] },
+    { id: -105, name: `${district.shortName} Central Police Outpost`, coordinates: [latitude + 0.018, longitude - 0.012] },
+    { id: -106, name: `${district.shortName} Village Police Outpost`, coordinates: [latitude - 0.018, longitude - 0.008] },
   ];
 }
 
 function fallbackHelplinesForDistrict(district: ReturnType<typeof getDistrict>): ServicePoint[] {
-  const [latitude, longitude] = district.center;
+  const [latitude, longitude] = district.dispatchOrigin;
   return [
-    { id: -201, name: `${district.shortName} Emergency Help Point 112`, coordinates: [latitude + 0.006, longitude + 0.006] },
-    { id: -202, name: `${district.shortName} Disaster Control Room`, coordinates: [latitude - 0.006, longitude - 0.006] },
-    { id: -203, name: `${district.shortName} Relief Helpline Desk`, coordinates: [latitude + 0.02, longitude - 0.018] },
-    { id: -204, name: `${district.shortName} Rescue Coordination Point`, coordinates: [latitude - 0.02, longitude + 0.018] },
-    { id: -205, name: `${district.shortName} Village Help Desk`, coordinates: [latitude + 0.026, longitude + 0.024] },
-    { id: -206, name: `${district.shortName} Relief Camp Helpline`, coordinates: [latitude - 0.026, longitude - 0.024] },
+    { id: -201, name: `${district.shortName} Emergency Help Point 112`, coordinates: [latitude + 0.006, longitude - 0.003] },
+    { id: -202, name: `${district.shortName} Disaster Control Room`, coordinates: [latitude - 0.006, longitude - 0.005] },
+    { id: -203, name: `${district.shortName} Relief Helpline Desk`, coordinates: [latitude + 0.012, longitude - 0.009] },
+    { id: -204, name: `${district.shortName} Rescue Coordination Point`, coordinates: [latitude - 0.012, longitude - 0.008] },
+    { id: -205, name: `${district.shortName} Village Help Desk`, coordinates: [latitude + 0.018, longitude - 0.012] },
+    { id: -206, name: `${district.shortName} Relief Camp Helpline`, coordinates: [latitude - 0.018, longitude - 0.011] },
   ];
 }
 
